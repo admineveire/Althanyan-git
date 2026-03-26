@@ -9,7 +9,7 @@
   <link rel="manifest" href="/static/frontend/images/favicon/site.webmanifest" />
   <meta name="theme-color" content="#0f766e" />
   <link rel="stylesheet" href="/static/admin/vendor/tabler/tabler.min.css" />
-  <link rel="stylesheet" href="/static/admin/css/dashboard.css?v=20260326-07" />
+  <link rel="stylesheet" href="/static/admin/css/dashboard.css?v=20260326-34" />
 </head>
 <body class="admin-dashboard admin-products-page">
   <div class="page">
@@ -43,6 +43,7 @@
               <table class="table table-vcenter card-table products-admin-table">
                 <thead>
                   <tr>
+                    <th></th>
                     <th>Preview</th>
                     <th>Name</th>
                     <th>Price</th>
@@ -51,9 +52,22 @@
                     <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="products-admin-tbody">
                   {% for product in products %}
-                  <tr>
+                  <tr class="products-admin-row" data-product-id="{{ product.id }}" draggable="true">
+                    <td class="products-admin-sort-cell">
+                      <button type="button" class="products-admin-sort-handle" aria-label="ترتيب المنتج" title="اسحب لترتيب المنتج">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" aria-hidden="true" focusable="false">
+                          <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" transform="translate(5 6)">
+                            <path d="m2.35073766 3.50548574.14926234-.00548574v-1c0-.55228475.44771525-1 1-1s1 .44771525 1 1v-1c0-.55228475.44771525-1 1-1s1 .44771525 1 1v1c0-.55228475.44771525-1 1-1s1 .44771525 1 1v1c0-.55228475.44771525 1-1 1 .5522847 0 1 .44771525 1 1v4c0 2.7614237-2.23857625 5-5 5h-.5c-2.48528137 0-4.5-2.0147186-4.5-4.5v-2.5c0-1.0543618.81587779-1.91816512 1.85073766-1.99451426z"/>
+                            <path d="m2.5 2.5v3"/>
+                            <path d="m4.5 1.5v2"/>
+                            <path d="m6.5 1.5v2"/>
+                            <path d="m8.5 2.5v2"/>
+                          </g>
+                        </svg>
+                      </button>
+                    </td>
                     <td>
                       <div class="products-admin-preview">
                         {% if product.image_url %}
@@ -256,6 +270,10 @@
       var editCurrentImageWrapEl = document.getElementById("edit-product-current-image");
       var editCurrentImageEl = document.getElementById("edit-product-current-image-tag");
       var editButtons = Array.prototype.slice.call(document.querySelectorAll("[data-edit-product]"));
+      var productsTbodyEl = document.getElementById("products-admin-tbody");
+      var csrfToken = {{ csrf_token|tojson }};
+      var draggedRowEl = null;
+      var reorderInFlight = false;
 
       function setAddPanelOpen(isOpen) {
         if (!addPanelEl || !layoutEl || !addTriggerEl) {
@@ -415,6 +433,102 @@
           setEditModalOpen(true);
         });
       });
+
+      function getProductOrder() {
+        if (!productsTbodyEl) {
+          return [];
+        }
+        return Array.prototype.slice.call(productsTbodyEl.querySelectorAll(".products-admin-row"))
+          .map(function (rowEl) {
+            return String(rowEl.getAttribute("data-product-id") || "").trim();
+          })
+          .filter(Boolean);
+      }
+
+      async function persistProductOrder() {
+        if (!productsTbodyEl || reorderInFlight) {
+          return;
+        }
+        reorderInFlight = true;
+        try {
+          var response = await window.fetch("/admin/products/reorder/save", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+              order: getProductOrder()
+            })
+          });
+          if (!response.ok) {
+            throw new Error("reorder_failed");
+          }
+        } catch (error) {
+          window.location.reload();
+        } finally {
+          reorderInFlight = false;
+        }
+      }
+
+      function getDragAfterElement(containerEl, clientY) {
+        var rows = Array.prototype.slice.call(containerEl.querySelectorAll(".products-admin-row:not(.is-dragging)"));
+        var closest = null;
+        rows.forEach(function (rowEl) {
+          var box = rowEl.getBoundingClientRect();
+          var offset = clientY - box.top - (box.height / 2);
+          if (offset < 0 && (!closest || offset > closest.offset)) {
+            closest = { offset: offset, element: rowEl };
+          }
+        });
+        return closest ? closest.element : null;
+      }
+
+      if (productsTbodyEl) {
+        productsTbodyEl.addEventListener("dragstart", function (event) {
+          var rowEl = event.target.closest(".products-admin-row");
+          if (!rowEl) {
+            return;
+          }
+          draggedRowEl = rowEl;
+          rowEl.classList.add("is-dragging");
+          if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", rowEl.getAttribute("data-product-id") || "");
+          }
+        });
+
+        productsTbodyEl.addEventListener("dragover", function (event) {
+          if (!draggedRowEl) {
+            return;
+          }
+          event.preventDefault();
+          var afterElement = getDragAfterElement(productsTbodyEl, event.clientY);
+          if (!afterElement) {
+            productsTbodyEl.appendChild(draggedRowEl);
+          } else if (afterElement !== draggedRowEl) {
+            productsTbodyEl.insertBefore(draggedRowEl, afterElement);
+          }
+        });
+
+        productsTbodyEl.addEventListener("drop", function (event) {
+          if (!draggedRowEl) {
+            return;
+          }
+          event.preventDefault();
+        });
+
+        productsTbodyEl.addEventListener("dragend", function () {
+          if (!draggedRowEl) {
+            return;
+          }
+          draggedRowEl.classList.remove("is-dragging");
+          draggedRowEl = null;
+          persistProductOrder();
+        });
+      }
     })();
   </script>
 </body>

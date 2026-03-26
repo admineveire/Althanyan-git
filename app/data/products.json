@@ -1,42 +1,7 @@
 [
   {
-    "id": "shrimp-offer",
-    "name": "حمام 10 حبات",
-    "description": "",
-    "price": 20.0,
-    "discount_enabled": false,
-    "discount_percentage": 0.0,
-    "discounted_price": 20.0,
-    "image_url": "/static/frontend/images/products/31106b15ad544f5c.webp",
-    "thumb_class": "thumb-seafood",
-    "active": true
-  },
-  {
-    "id": "asfour-tin",
-    "name": "حمام 20 حبة",
-    "description": "",
-    "price": 35.0,
-    "discount_enabled": false,
-    "discount_percentage": 0.0,
-    "discounted_price": 35.0,
-    "image_url": "/static/frontend/images/products/2ce7095d2aa00369.webp",
-    "thumb_class": "thumb-dates-b",
-    "active": true
-  },
-  {
-    "id": "mekbous-dates",
-    "name": "خاروف استرالي مبرد",
-    "description": "",
-    "price": 65.0,
-    "discount_enabled": false,
-    "discount_percentage": 0.0,
-    "discounted_price": 65.0,
-    "image_url": "/static/frontend/images/products/b7508eda512f2a18.webp",
-    "thumb_class": "thumb-dates-c",
-    "active": true
-  },
-  {
     "id": "mixed-basket",
+    "position": 0,
     "name": "بيض دجاج عربي 3 أطباق",
     "description": "",
     "price": 12.0,
@@ -48,7 +13,47 @@
     "active": true
   },
   {
+    "id": "mekbous-dates",
+    "position": 1,
+    "name": "خاروف استرالي مبرد",
+    "description": "",
+    "price": 65.0,
+    "discount_enabled": false,
+    "discount_percentage": 0.0,
+    "discounted_price": 65.0,
+    "image_url": "/static/frontend/images/products/b7508eda512f2a18.webp",
+    "thumb_class": "thumb-dates-c",
+    "active": true
+  },
+  {
+    "id": "asfour-tin",
+    "position": 2,
+    "name": "حمام 20 حبة",
+    "description": "",
+    "price": 35.0,
+    "discount_enabled": false,
+    "discount_percentage": 0.0,
+    "discounted_price": 35.0,
+    "image_url": "/static/frontend/images/products/2ce7095d2aa00369.webp",
+    "thumb_class": "thumb-dates-b",
+    "active": true
+  },
+  {
+    "id": "shrimp-offer",
+    "position": 3,
+    "name": "حمام 10 حبات",
+    "description": "",
+    "price": 20.0,
+    "discount_enabled": false,
+    "discount_percentage": 0.0,
+    "discounted_price": 20.0,
+    "image_url": "/static/frontend/images/products/31106b15ad544f5c.webp",
+    "thumb_class": "thumb-seafood",
+    "active": true
+  },
+  {
     "id": "premium-box",
+    "position": 4,
     "name": "دجاج عربي ساسو طازج",
     "description": "",
     "price": 20.0,
@@ -61,6 +66,7 @@
   },
   {
     "id": "6cd5feb96cdf054e",
+    "position": 5,
     "name": "سمك البلطي الكويتي 5 كيلو",
     "description": "",
     "price": 12.0,
@@ -73,6 +79,7 @@
   },
   {
     "id": "3426d3c416c6e774",
+    "position": 6,
     "name": "سمك البلطي الكويتي 10 كيلو",
     "description": "",
     "price": 20.0,
@@ -85,6 +92,7 @@
   },
   {
     "id": "00a482136bf23eb2",
+    "position": 7,
     "name": "بط فرنسي 5 حبات",
     "description": "",
     "price": 20.0,
@@ -97,6 +105,7 @@
   },
   {
     "id": "14936074b59b24b7",
+    "position": 8,
     "name": "بط فرنسي 10 حبات",
     "description": "",
     "price": 35.0,
@@ -109,6 +118,7 @@
   },
   {
     "id": "5945c44fe806ff37",
+    "position": 9,
     "name": "تيس عارضي",
     "description": "",
     "price": 80.0,
@@ -121,6 +131,7 @@
   },
   {
     "id": "80f04d5ba7354103",
+    "position": 10,
     "name": "خروف شفالي محلي تسمين مزرعة الثنيان",
     "description": "خروف شفالي محلي عمر من 4 إلى 5 شهور\r\n\r\nشفالي محلي كامل شامل الذبح والتنظيف والتغليف و التوصيل\r\n\r\nلحم خاروف شفالي محلي طري بجودة ممتازة .\r\nطعم رائع مناسب لكافة المأكولات، مصدر غني بالبروتين.\r\nمثالية لإعداد أشهى الوجبات، مناسب للطهاة والطبخ المنزلي المتنوع.",
     "price": 125.0,
@@ -133,6 +144,7 @@
   },
   {
     "id": "c9c0f056db6fa819",
+    "position": 11,
     "name": "خروف تركي مبرد",
     "description": "",
     "price": 49.5,

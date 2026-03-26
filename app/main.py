@@ -329,6 +329,7 @@ def default_store_products() -> list[dict[str, Any]]:
     return [
         {
             "id": "royal-dates",
+            "position": 0,
             "name": "عرض تمر المقعى الملكي",
             "description": "بوكس 5 كيلو تمر مقعى ملكي فاخر.",
             "price": 10.0,
@@ -340,6 +341,7 @@ def default_store_products() -> list[dict[str, Any]]:
         },
         {
             "id": "shrimp-offer",
+            "position": 1,
             "name": "عرض كل الكويت الجديد",
             "description": "10 كيلو روبيان عماني جامبو طازج.",
             "price": 5.0,
@@ -351,6 +353,7 @@ def default_store_products() -> list[dict[str, Any]]:
         },
         {
             "id": "asfour-tin",
+            "position": 2,
             "name": "عرض 50 عصفور التين",
             "description": "بوكس 50 عصفورتين درجة أولى حجم كبير.",
             "price": 7.5,
@@ -362,6 +365,7 @@ def default_store_products() -> list[dict[str, Any]]:
         },
         {
             "id": "mekbous-dates",
+            "position": 3,
             "name": "عرض تمر الخلاص المكبوس",
             "description": "بوكس 8 كيلو تمر الخلاص المكبوس درجة أولى.",
             "price": 6.25,
@@ -373,6 +377,7 @@ def default_store_products() -> list[dict[str, Any]]:
         },
         {
             "id": "mixed-basket",
+            "position": 4,
             "name": "سلة مزارع مشكلة",
             "description": "سلة مختارة من التمور والمنتجات الموسمية.",
             "price": 12.0,
@@ -384,6 +389,7 @@ def default_store_products() -> list[dict[str, Any]]:
         },
         {
             "id": "premium-box",
+            "position": 5,
             "name": "بوكس الضيافة الفاخر",
             "description": "تشكيلة جاهزة للتقديم مع تمر فاخر وتغليف أنيق.",
             "price": 9.75,
@@ -413,9 +419,14 @@ def normalize_store_product(item: Any, fallback_index: int) -> dict[str, Any]:
         if discount_enabled and price > 0
         else price
     )
+    try:
+        position = int(record.get("position", fallback_index))
+    except (TypeError, ValueError):
+        position = fallback_index
     return {
         "id": str(record.get("id", "")).strip()
         or f"product-{fallback_index + 1}-{secrets.token_hex(3)}",
+        "position": max(position, 0),
         "name": str(record.get("name", "")).strip() or "منتج",
         "description": str(record.get("description", "")).strip(),
         "price": price,
@@ -1913,9 +1924,18 @@ def load_store_products_sync() -> list[dict[str, Any]]:
         )
     if not isinstance(raw_items, list):
         raw_items = default_store_products()
-    return [
+    normalized_products = [
         normalize_store_product(item, index) for index, item in enumerate(raw_items)
     ]
+    normalized_products.sort(
+        key=lambda product: (
+            int(product.get("position", 0) or 0),
+            str(product.get("name", "")),
+        )
+    )
+    for index, product in enumerate(normalized_products):
+        product["position"] = index
+    return normalized_products
 
 
 def save_store_products_sync(products: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1923,6 +1943,14 @@ def save_store_products_sync(products: list[dict[str, Any]]) -> list[dict[str, A
     normalized_products = [
         normalize_store_product(item, index) for index, item in enumerate(products)
     ]
+    normalized_products.sort(
+        key=lambda product: (
+            int(product.get("position", 0) or 0),
+            str(product.get("name", "")),
+        )
+    )
+    for index, product in enumerate(normalized_products):
+        product["position"] = index
     products_file_path.write_text(
         json.dumps(normalized_products, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -2017,6 +2045,11 @@ def create_or_update_store_product_sync(
         normalized_discount_percentage = 0.0
     next_product = {
         "id": str(product_id or "").strip() or secrets.token_hex(8),
+        "position": (
+            int(existing_product.get("position", existing_index))
+            if existing_product
+            else len(products)
+        ),
         "name": name,
         "description": description,
         "price": round(float(price), 3),
@@ -2048,6 +2081,32 @@ def delete_store_product_sync(product_id: str) -> bool:
     remove_uploaded_product_image_sync(str(removed_product.get("image_url", "")))
     save_store_products_sync(filtered_products)
     return True
+
+
+def reorder_store_products_sync(product_ids: list[str]) -> list[dict[str, Any]]:
+    products = load_store_products_sync()
+    current_by_id = {
+        str(product.get("id", "")): product for product in products if str(product.get("id", "")).strip()
+    }
+    ordered_ids: list[str] = []
+    seen_ids: set[str] = set()
+    for product_id in product_ids:
+        normalized_id = str(product_id or "").strip()
+        if not normalized_id or normalized_id in seen_ids or normalized_id not in current_by_id:
+            continue
+        seen_ids.add(normalized_id)
+        ordered_ids.append(normalized_id)
+    for product in products:
+        normalized_id = str(product.get("id", "")).strip()
+        if normalized_id and normalized_id not in seen_ids:
+            ordered_ids.append(normalized_id)
+            seen_ids.add(normalized_id)
+    reordered_products = []
+    for index, product_id in enumerate(ordered_ids):
+        product = dict(current_by_id[product_id])
+        product["position"] = index
+        reordered_products.append(product)
+    return save_store_products_sync(reordered_products)
 
 
 @app.get("/")
@@ -2508,6 +2567,28 @@ async def admin_delete_product(product_id: str, request: Request):
         return RedirectResponse(url="/admin/products", status_code=303)
     await to_thread.run_sync(delete_store_product_sync, product_id)
     return RedirectResponse(url="/admin/products", status_code=303)
+
+
+@app.post("/admin/products/reorder/save")
+async def admin_reorder_products(request: Request):
+    redirect = require_admin_or_redirect(request)
+    if redirect is not None:
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    try:
+        payload = await request.json()
+    except ValueError:
+        payload = {}
+    csrf_token = request.headers.get("X-CSRF-Token", "")
+    if not validate_csrf_token(request, csrf_token):
+        return JSONResponse(status_code=403, content={"detail": "Invalid CSRF token"})
+    order = payload.get("order", []) if isinstance(payload, dict) else []
+    if not isinstance(order, list):
+        return JSONResponse(status_code=400, content={"detail": "Invalid order payload"})
+    reordered_products = await to_thread.run_sync(reorder_store_products_sync, [str(item or "").strip() for item in order])
+    return {
+        "status": "ok",
+        "products": reordered_products,
+    }
 
 
 @app.get("/admin/api/online-users")
