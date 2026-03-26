@@ -2074,6 +2074,35 @@ body.is-admin-modal-open .page {
   text-align: right;
 }
 
+.social-settings-modal-card {
+  width: min(100%, 620px);
+  direction: rtl;
+  text-align: right;
+}
+
+.social-settings-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.social-settings-file-input {
+  padding-block: 10px;
+}
+
+.social-settings-image-link {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  color: #0f766e;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.social-settings-image-link:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 768px) {
   .products-admin-layout {
     grid-template-columns: 1fr;

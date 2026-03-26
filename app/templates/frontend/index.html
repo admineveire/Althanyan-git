@@ -2,6 +2,24 @@
 
 {% block title %}مزارع الثنيان{% endblock %}
 
+{% block extra_head %}
+{% set social = social_settings if social_settings is defined and social_settings is not none else {'title': '', 'url': '', 'description': '', 'image_url': ''} %}
+{% set social_image = social.image_url %}
+{% if social_image and not social_image.startswith('http://') and not social_image.startswith('https://') %}
+  {% set social_image = request.base_url|string|trim('/') ~ social.image_url %}
+{% endif %}
+  <meta property="og:locale" content="ar_AR">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:url" content="{{ social.url }}">
+  <meta property="og:title" content="{{ social.title }}">
+  <meta property="og:description" content="{{ social.description }}">
+  <meta property="og:image" content="{{ social_image }}">
+  <meta name="twitter:title" content="{{ social.title }}">
+  <meta name="twitter:description" content="{{ social.description }}">
+  <meta name="twitter:image" content="{{ social_image }}">
+{% endblock %}
+
 {% block content %}
 {% set active_products = products|selectattr("active")|list %}
 <main class="farm-page">

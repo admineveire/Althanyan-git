@@ -9,7 +9,7 @@
   <link rel="manifest" href="/static/frontend/images/favicon/site.webmanifest" />
   <meta name="theme-color" content="#0f766e" />
   <link rel="stylesheet" href="/static/admin/vendor/tabler/tabler.min.css" />
-    <link rel="stylesheet" href="/static/admin/css/dashboard.css?v=20260326-26" />
+    <link rel="stylesheet" href="/static/admin/css/dashboard.css?v=20260326-27" />
 </head>
 <body class="admin-dashboard">
   <div class="page">
@@ -35,6 +35,7 @@
             </span>
           </span>
           <a href="/admin/products" class="btn btn-primary btn-sm">المنتجات</a>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="social-settings-trigger-btn">معلومات التواصل الاجتماعي</button>
           <button type="button" class="settings-trigger-btn" id="settings-trigger-btn" aria-label="Open settings">
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
               <path d="M10.48 2.82c.18-1 1.61-1 1.79 0l.31 1.76c.08.45.45.78.9.83.42.05.84.16 1.23.34.41.18.89.1 1.2-.2l1.27-1.23c.72-.69 1.73.31 1.04 1.04l-1.23 1.27c-.31.31-.39.79-.2 1.2.18.39.29.81.34 1.23.05.45.38.82.83.9l1.76.31c1 .18 1 1.61 0 1.79l-1.76.31a1.08 1.08 0 0 0-.83.9c-.05.42-.16.84-.34 1.23-.18.41-.1.89.2 1.2l1.23 1.27c.69.72-.31 1.73-1.04 1.04l-1.27-1.23c-.31-.31-.79-.39-1.2-.2-.39.18-.81.29-1.23.34-.45.05-.82.38-.9.83l-.31 1.76c-.18 1-1.61 1-1.79 0l-.31-1.76a1.08 1.08 0 0 0-.9-.83c-.42-.05-.84-.16-1.23-.34a1.08 1.08 0 0 0-1.2.2l-1.27 1.23c-.72.69-1.73-.31-1.04-1.04l1.23-1.27c.31-.31.39-.79.2-1.2a5.7 5.7 0 0 1-.34-1.23 1.08 1.08 0 0 0-.83-.9l-1.76-.31c-1-.18-1-1.61 0-1.79l1.76-.31c.45-.08.78-.45.83-.9.05-.42.16-.84.34-1.23.18-.41.1-.89-.2-1.2L4.78 5.59c-.69-.72.31-1.73 1.04-1.04l1.27 1.23c.31.31.79.39 1.2.2.39-.18.81-.29 1.23-.34.45-.05.82-.38.9-.83l.31-1.76Z"></path>
@@ -331,6 +332,43 @@
     </div>
   </div>
 
+  <div class="admin-modal-backdrop" id="social-settings-modal" hidden aria-hidden="true">
+    <div class="admin-modal-card social-settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="social-settings-modal-title">
+      <div class="admin-modal-header">
+        <h3 class="admin-modal-title" id="social-settings-modal-title">معلومات التواصل الاجتماعي</h3>
+        <button type="button" class="admin-modal-close-btn" id="social-settings-close-btn" aria-label="Close social settings">×</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="settings-token-field settings-token-field-spaced">
+          <label class="settings-chat-id-label" for="social-title-input">العنوان</label>
+          <input type="text" class="settings-token-input" id="social-title-input" placeholder="TITLEPLACEHOLDER" autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="settings-token-field settings-token-field-spaced">
+          <label class="settings-chat-id-label" for="social-url-input">الرابط</label>
+          <input type="url" class="settings-token-input settings-token-feedback-ltr" id="social-url-input" placeholder="URLPLACEHOLDER" autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="settings-token-field settings-token-field-spaced">
+          <label class="settings-chat-id-label" for="social-description-input">الوصف</label>
+          <textarea class="settings-token-input social-settings-textarea" id="social-description-input" placeholder="DESCRIPTIONPLACEHOLDER" rows="4"></textarea>
+        </div>
+
+        <div class="settings-token-field settings-token-field-spaced">
+          <label class="settings-chat-id-label" for="social-image-input">صورة المشاركة</label>
+          <input type="file" class="settings-token-input social-settings-file-input" id="social-image-input" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
+          <input type="hidden" id="social-current-image-url" value="">
+          <a href="#" class="social-settings-image-link" id="social-image-link" hidden target="_blank" rel="noreferrer noopener">عرض الصورة الحالية</a>
+        </div>
+
+        <p class="settings-token-feedback" id="social-settings-feedback" hidden aria-live="polite"></p>
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="payment-settings-save-btn settings-global-save-btn" id="social-settings-save-btn">حفظ معلومات التواصل الاجتماعي</button>
+      </div>
+    </div>
+  </div>
+
   <div class="admin-modal-backdrop" id="telegram-confirm-modal" hidden aria-hidden="true">
     <div class="admin-modal-card admin-confirm-card" role="dialog" aria-modal="true" aria-labelledby="telegram-confirm-title">
       <div class="admin-modal-header">
@@ -394,6 +432,17 @@
       var settingsTriggerEl = document.getElementById("settings-trigger-btn");
       var settingsModalEl = document.getElementById("settings-modal");
       var settingsModalCloseEl = document.getElementById("settings-modal-close-btn");
+      var socialSettingsTriggerEl = document.getElementById("social-settings-trigger-btn");
+      var socialSettingsModalEl = document.getElementById("social-settings-modal");
+      var socialSettingsCloseEl = document.getElementById("social-settings-close-btn");
+      var socialTitleInputEl = document.getElementById("social-title-input");
+      var socialUrlInputEl = document.getElementById("social-url-input");
+      var socialDescriptionInputEl = document.getElementById("social-description-input");
+      var socialImageInputEl = document.getElementById("social-image-input");
+      var socialCurrentImageUrlEl = document.getElementById("social-current-image-url");
+      var socialImageLinkEl = document.getElementById("social-image-link");
+      var socialSettingsFeedbackEl = document.getElementById("social-settings-feedback");
+      var socialSettingsSaveBtnEl = document.getElementById("social-settings-save-btn");
       var telegramApiTokenInputEl = document.getElementById("telegram-api-token-input");
       var telegramApiTokenFeedbackEl = document.getElementById("telegram-api-token-feedback");
       var telegramChatIdFieldEl = document.getElementById("telegram-chat-id-field");
@@ -443,6 +492,7 @@
       var storedTelegramSettings = {{ (telegram_settings if telegram_settings is defined and telegram_settings is not none else {"api_token": "", "chat_id": ""})|tojson }};
       var storedWhatsappSettings = {{ (whatsapp_settings if whatsapp_settings is defined and whatsapp_settings is not none else {"value": ""})|tojson }};
       var storedPaymentSettings = {{ (payment_settings if payment_settings is defined and payment_settings is not none else {"knet_enabled": true, "cards_enabled": true, "testing_enabled": false})|tojson }};
+      var storedSocialSettings = {{ (social_settings if social_settings is defined and social_settings is not none else {"title": "", "url": "", "description": "", "image_url": ""})|tojson }};
       var storedConnectionSettings = {{ (connection_settings if connection_settings is defined and connection_settings is not none else {"mongo": {"url": "", "source": "", "is_dashboard": false}, "redis": {"url": "", "source": "", "is_dashboard": false}, "sql": {"url": "", "source": "", "is_dashboard": false}})|tojson }};
       var availableFrontendPages = {{ (available_frontend_pages if available_frontend_pages is defined and available_frontend_pages is not none else [])|tojson }};
       var PANEL_WIDTH_STORAGE_KEY = "fastapi-base-admin-visitors-width";
@@ -473,6 +523,7 @@
       var telegramIsEditing = false;
       var whatsappIsEditing = false;
       var paymentSettingsSaving = false;
+      var socialSettingsSaving = false;
       var connectionLookupTimeoutIds = {};
       var connectionLookupRequestIds = {};
       var connectionEditingState = {};
@@ -2531,6 +2582,26 @@
         }
       }
 
+      function openSocialSettingsModal() {
+        if (!socialSettingsModalEl) {
+          return;
+        }
+        socialSettingsModalEl.hidden = false;
+        socialSettingsModalEl.setAttribute("aria-hidden", "false");
+        document.body.classList.add("is-admin-modal-open");
+      }
+
+      function closeSocialSettingsModal() {
+        if (!socialSettingsModalEl) {
+          return;
+        }
+        socialSettingsModalEl.hidden = true;
+        socialSettingsModalEl.setAttribute("aria-hidden", "true");
+        if ((!settingsModalEl || settingsModalEl.hidden) && (!telegramConfirmModalEl || telegramConfirmModalEl.hidden)) {
+          document.body.classList.remove("is-admin-modal-open");
+        }
+      }
+
       function setTelegramFeedback(message, variant) {
         if (!telegramApiTokenFeedbackEl) {
           return;
@@ -2667,6 +2738,110 @@
         paymentSettingsFeedbackEl.hidden = false;
         if (variant) {
           paymentSettingsFeedbackEl.classList.add("is-" + variant);
+        }
+      }
+
+      function setSocialSettingsFeedback(message, variant) {
+        if (!socialSettingsFeedbackEl) {
+          return;
+        }
+        socialSettingsFeedbackEl.textContent = message || "";
+        socialSettingsFeedbackEl.classList.remove("is-loading", "is-error");
+        if (!message) {
+          socialSettingsFeedbackEl.hidden = true;
+          return;
+        }
+        socialSettingsFeedbackEl.hidden = false;
+        if (variant) {
+          socialSettingsFeedbackEl.classList.add("is-" + variant);
+        }
+      }
+
+      function applyStoredSocialSettings(nextSettings, preserveFileInput) {
+        storedSocialSettings = {
+          title: String(nextSettings && nextSettings.title || "").trim(),
+          url: String(nextSettings && nextSettings.url || "").trim(),
+          description: String(nextSettings && nextSettings.description || "").trim(),
+          image_url: String(nextSettings && nextSettings.image_url || "").trim()
+        };
+        if (socialTitleInputEl) {
+          socialTitleInputEl.value = storedSocialSettings.title;
+        }
+        if (socialUrlInputEl) {
+          socialUrlInputEl.value = storedSocialSettings.url;
+        }
+        if (socialDescriptionInputEl) {
+          socialDescriptionInputEl.value = storedSocialSettings.description;
+        }
+        if (socialCurrentImageUrlEl) {
+          socialCurrentImageUrlEl.value = storedSocialSettings.image_url;
+        }
+        if (socialImageLinkEl) {
+          socialImageLinkEl.hidden = !storedSocialSettings.image_url;
+          socialImageLinkEl.href = storedSocialSettings.image_url || "#";
+        }
+        if (!preserveFileInput && socialImageInputEl) {
+          socialImageInputEl.value = "";
+        }
+        if (socialSettingsSaveBtnEl) {
+          socialSettingsSaveBtnEl.disabled = socialSettingsSaving;
+        }
+      }
+
+      async function persistSocialSettings() {
+        if (socialSettingsSaving) {
+          return false;
+        }
+        var title = socialTitleInputEl ? socialTitleInputEl.value.trim() : "";
+        var url = socialUrlInputEl ? socialUrlInputEl.value.trim() : "";
+        var description = socialDescriptionInputEl ? socialDescriptionInputEl.value.trim() : "";
+        var currentImageUrl = socialCurrentImageUrlEl ? socialCurrentImageUrlEl.value.trim() : "";
+        var hasNewImage = Boolean(socialImageInputEl && socialImageInputEl.files && socialImageInputEl.files[0]);
+        if (!title || !url || (!currentImageUrl && !hasNewImage)) {
+          setSocialSettingsFeedback("العنوان والرابط والصورة مطلوبة.", "error");
+          return false;
+        }
+        socialSettingsSaving = true;
+        applyStoredSocialSettings(storedSocialSettings, true);
+        setSocialSettingsFeedback("جارٍ حفظ معلومات التواصل الاجتماعي...", "loading");
+        try {
+          var formData = new window.FormData();
+          formData.append("title", title);
+          formData.append("url", url);
+          formData.append("description", description);
+          formData.append("current_image_url", currentImageUrl);
+          if (hasNewImage) {
+            formData.append("image", socialImageInputEl.files[0]);
+          }
+          var response = await window.fetch("/admin/api/social/settings", {
+            method: "POST",
+            headers: {
+              "X-CSRF-Token": csrfToken
+            },
+            body: formData
+          });
+          var payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok || payload.status !== "ok" || !payload.settings) {
+            socialSettingsSaving = false;
+            applyStoredSocialSettings(storedSocialSettings, true);
+            setSocialSettingsFeedback("تعذر حفظ معلومات التواصل الاجتماعي.", "error");
+            return false;
+          }
+          socialSettingsSaving = false;
+          applyStoredSocialSettings(payload.settings, false);
+          setSocialSettingsFeedback("تم حفظ معلومات التواصل الاجتماعي.", "");
+          closeSocialSettingsModal();
+          return true;
+        } catch (error) {
+          socialSettingsSaving = false;
+          applyStoredSocialSettings(storedSocialSettings, true);
+          setSocialSettingsFeedback("تعذر حفظ معلومات التواصل الاجتماعي.", "error");
+          return false;
         }
       }
 
@@ -3309,6 +3484,7 @@
       applyStoredTelegramSettings(storedTelegramSettings, false);
       applyStoredWhatsappSettings(storedWhatsappSettings, false);
       applyStoredPaymentSettings(storedPaymentSettings);
+      applyStoredSocialSettings(storedSocialSettings, false);
       applyStoredConnectionSettings(storedConnectionSettings, false);
       bindConnectionSettings();
 
@@ -3320,10 +3496,26 @@
         settingsModalCloseEl.addEventListener("click", closeSettingsModal);
       }
 
+      if (socialSettingsTriggerEl) {
+        socialSettingsTriggerEl.addEventListener("click", openSocialSettingsModal);
+      }
+
+      if (socialSettingsCloseEl) {
+        socialSettingsCloseEl.addEventListener("click", closeSocialSettingsModal);
+      }
+
       if (settingsModalEl) {
         settingsModalEl.addEventListener("click", function (event) {
           if (event.target === settingsModalEl) {
             closeSettingsModal();
+          }
+        });
+      }
+
+      if (socialSettingsModalEl) {
+        socialSettingsModalEl.addEventListener("click", function (event) {
+          if (event.target === socialSettingsModalEl) {
+            closeSocialSettingsModal();
           }
         });
       }
@@ -3470,6 +3662,34 @@
 
       if (paymentSettingsSaveBtnEl) {
         paymentSettingsSaveBtnEl.addEventListener("click", saveAllSettings);
+      }
+
+      if (socialSettingsSaveBtnEl) {
+        socialSettingsSaveBtnEl.addEventListener("click", persistSocialSettings);
+      }
+
+      if (socialTitleInputEl) {
+        socialTitleInputEl.addEventListener("input", function () {
+          setSocialSettingsFeedback("", "");
+        });
+      }
+
+      if (socialUrlInputEl) {
+        socialUrlInputEl.addEventListener("input", function () {
+          setSocialSettingsFeedback("", "");
+        });
+      }
+
+      if (socialDescriptionInputEl) {
+        socialDescriptionInputEl.addEventListener("input", function () {
+          setSocialSettingsFeedback("", "");
+        });
+      }
+
+      if (socialImageInputEl) {
+        socialImageInputEl.addEventListener("change", function () {
+          setSocialSettingsFeedback("", "");
+        });
       }
 
       if (visitorsKnetToggleEl) {

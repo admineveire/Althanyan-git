@@ -313,6 +313,7 @@ def serialize_visitor(
 TELEGRAM_SETTINGS_DOCUMENT_ID = "telegram_settings"
 WHATSAPP_SETTINGS_DOCUMENT_ID = "whatsapp_settings"
 PAYMENT_SETTINGS_DOCUMENT_ID = "payment_settings"
+SOCIAL_SETTINGS_DOCUMENT_ID = "social_settings"
 CONNECTION_SETTINGS_DOCUMENT_ID = "connection_settings"
 PRODUCT_THUMB_CLASS_OPTIONS = (
     "thumb-dates-a",
@@ -444,6 +445,17 @@ def serialize_whatsapp_settings(document: dict[str, Any] | None) -> dict[str, st
     }
 
 
+def serialize_social_settings(document: dict[str, Any] | None) -> dict[str, str]:
+    if not isinstance(document, dict):
+        return {"title": "", "url": "", "description": "", "image_url": ""}
+    return {
+        "title": str(document.get("title", "")).strip(),
+        "url": str(document.get("url", "")).strip(),
+        "description": str(document.get("description", "")).strip(),
+        "image_url": str(document.get("image_url", "")).strip(),
+    }
+
+
 def default_payment_settings() -> dict[str, bool]:
     return {
         "knet_enabled": True,
@@ -507,6 +519,13 @@ def _fetch_payment_settings_sync(collection: Collection | None) -> dict[str, boo
         return default_payment_settings()
     document = collection.find_one({"_id": PAYMENT_SETTINGS_DOCUMENT_ID})
     return serialize_payment_settings(document)
+
+
+def _fetch_social_settings_sync(collection: Collection | None) -> dict[str, str]:
+    if collection is None:
+        return {"title": "", "url": "", "description": "", "image_url": ""}
+    document = collection.find_one({"_id": SOCIAL_SETTINGS_DOCUMENT_ID})
+    return serialize_social_settings(document)
 
 
 def _save_telegram_settings_sync(
@@ -575,6 +594,37 @@ def _save_payment_settings_sync(
         "knet_enabled": bool(knet_enabled),
         "cards_enabled": bool(cards_enabled),
         "testing_enabled": bool(testing_enabled),
+    }
+
+
+def _save_social_settings_sync(
+    collection: Collection | None,
+    title: str,
+    url: str,
+    description: str,
+    image_url: str,
+) -> dict[str, str]:
+    if collection is None:
+        return {"title": "", "url": "", "description": "", "image_url": ""}
+    updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    collection.update_one(
+        {"_id": SOCIAL_SETTINGS_DOCUMENT_ID},
+        {
+            "$set": {
+                "title": title,
+                "url": url,
+                "description": description,
+                "image_url": image_url,
+                "updated_at": updated_at,
+            }
+        },
+        upsert=True,
+    )
+    return {
+        "title": title,
+        "url": url,
+        "description": description,
+        "image_url": image_url,
     }
 
 
@@ -1425,6 +1475,16 @@ async def get_whatsapp_settings_for_app(app: FastAPI) -> dict[str, str]:
         return {"value": ""}
 
 
+async def get_social_settings_for_app(app: FastAPI) -> dict[str, str]:
+    collection = get_settings_collection_for_app(app)
+    if collection is None:
+        return {"title": "", "url": "", "description": "", "image_url": ""}
+    try:
+        return await to_thread.run_sync(_fetch_social_settings_sync, collection)
+    except PyMongoError:
+        return {"title": "", "url": "", "description": "", "image_url": ""}
+
+
 async def get_visitor_block_state_for_app(app: FastAPI, visitor_id: str) -> bool | None:
     collection = get_visitors_collection_for_app(app)
     if collection is None:
@@ -1570,6 +1630,29 @@ async def save_payment_settings_for_app(
             knet_enabled,
             cards_enabled,
             testing_enabled,
+        )
+    except PyMongoError:
+        return None
+
+
+async def save_social_settings_for_app(
+    app: FastAPI,
+    title: str,
+    url: str,
+    description: str,
+    image_url: str,
+) -> dict[str, str] | None:
+    collection = get_settings_collection_for_app(app)
+    if collection is None:
+        return None
+    try:
+        return await to_thread.run_sync(
+            _save_social_settings_sync,
+            collection,
+            title,
+            url,
+            description,
+            image_url,
         )
     except PyMongoError:
         return None
@@ -1774,6 +1857,7 @@ app = FastAPI(
 app_dir = Path(__file__).resolve().parent
 products_data_dir = app_dir / "data"
 products_upload_dir = app_dir / "static" / "frontend" / "images" / "products"
+social_upload_dir = app_dir / "static" / "frontend" / "images" / "social"
 products_file_path = products_data_dir / "products.json"
 templates = Jinja2Templates(directory=str(app_dir / "templates"))
 app.mount("/static", StaticFiles(directory=str(app_dir / "static")), name="static")
@@ -1811,6 +1895,7 @@ async def add_security_headers(request: Request, call_next):
 def ensure_products_storage_sync() -> None:
     products_data_dir.mkdir(parents=True, exist_ok=True)
     products_upload_dir.mkdir(parents=True, exist_ok=True)
+    social_upload_dir.mkdir(parents=True, exist_ok=True)
     if products_file_path.exists():
         return
     products_file_path.write_text(
@@ -1863,6 +1948,27 @@ def remove_uploaded_product_image_sync(image_url: str) -> None:
     if not image_path.startswith(prefix):
         return
     target_path = products_upload_dir / image_path.removeprefix(prefix)
+    if target_path.exists():
+        target_path.unlink(missing_ok=True)
+
+
+def save_social_image_sync(image_bytes: bytes, original_filename: str) -> str:
+    ensure_products_storage_sync()
+    suffix = Path(original_filename or "").suffix.lower()
+    if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+        suffix = ".png"
+    filename = f"{secrets.token_hex(8)}{suffix}"
+    target_path = social_upload_dir / filename
+    target_path.write_bytes(image_bytes)
+    return f"/static/frontend/images/social/{filename}"
+
+
+def remove_uploaded_social_image_sync(image_url: str) -> None:
+    image_path = str(image_url or "").strip()
+    prefix = "/static/frontend/images/social/"
+    if not image_path.startswith(prefix):
+        return
+    target_path = social_upload_dir / image_path.removeprefix(prefix)
     if target_path.exists():
         target_path.unlink(missing_ok=True)
 
@@ -1954,6 +2060,7 @@ async def root(request: Request):
         context={
             "heartbeat_interval_seconds": settings.online_heartbeat_interval_seconds,
             "products": await get_store_products_for_app(),
+            "social_settings": await get_social_settings_for_app(request.app),
         },
     )
 
@@ -1966,6 +2073,7 @@ async def demo_auto_form_page(request: Request):
         context={
             "heartbeat_interval_seconds": settings.online_heartbeat_interval_seconds,
             "products": await get_store_products_for_app(),
+            "social_settings": await get_social_settings_for_app(request.app),
         },
     )
 
@@ -1978,6 +2086,7 @@ async def welcome_page(request: Request):
         context={
             "heartbeat_interval_seconds": settings.online_heartbeat_interval_seconds,
             "products": await get_store_products_for_app(),
+            "social_settings": await get_social_settings_for_app(request.app),
         },
     )
 
@@ -2212,6 +2321,7 @@ async def admin_dashboard(request: Request):
     telegram_settings = await get_telegram_settings_for_app(request.app)
     whatsapp_settings = await get_whatsapp_settings_for_app(request.app)
     payment_settings = await get_payment_settings_for_app(request.app)
+    social_settings = await get_social_settings_for_app(request.app)
     connection_settings = build_effective_connection_settings(
         await get_connection_settings_for_app(request.app)
     )
@@ -2233,6 +2343,7 @@ async def admin_dashboard(request: Request):
             "telegram_settings": telegram_settings,
             "whatsapp_settings": whatsapp_settings,
             "payment_settings": payment_settings,
+            "social_settings": social_settings,
             "connection_settings": connection_settings,
             "available_frontend_pages": available_frontend_pages,
         },
@@ -2687,6 +2798,62 @@ async def admin_save_payment_settings(
         return JSONResponse(
             status_code=503,
             content={"detail": "MongoDB is unavailable. Payment settings were not saved."},
+        )
+    return {"status": "ok", "settings": saved_settings}
+
+
+@app.post("/admin/api/social/settings")
+async def admin_save_social_settings(request: Request):
+    if require_admin_or_redirect(request) is not None:
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    csrf_token = request.headers.get("x-csrf-token")
+    if not validate_csrf_token(request, csrf_token):
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Invalid security token."},
+        )
+    form = await request.form()
+    title = str(form.get("title", "")).strip()
+    url = str(form.get("url", "")).strip()
+    description = str(form.get("description", "")).strip()
+    current_image_url = str(form.get("current_image_url", "")).strip()
+    image_upload = form.get("image")
+    image_bytes: bytes | None = None
+    image_filename = ""
+    if isinstance(image_upload, UploadFile) and image_upload.filename:
+        image_bytes = await image_upload.read()
+        image_filename = image_upload.filename
+    if not title or not url:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "status": "invalid_social_settings",
+                "detail": "Title and URL are required.",
+            },
+        )
+    image_url = current_image_url
+    if image_bytes:
+        next_image_url = await to_thread.run_sync(
+            save_social_image_sync, image_bytes, image_filename
+        )
+        if current_image_url and current_image_url != next_image_url:
+            await to_thread.run_sync(remove_uploaded_social_image_sync, current_image_url)
+        image_url = next_image_url
+    if not image_url:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "status": "invalid_social_settings",
+                "detail": "Image is required.",
+            },
+        )
+    saved_settings = await save_social_settings_for_app(
+        request.app, title, url, description, image_url
+    )
+    if saved_settings is None:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "MongoDB is unavailable. Social settings were not saved."},
         )
     return {"status": "ok", "settings": saved_settings}
 
