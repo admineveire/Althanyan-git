@@ -967,6 +967,13 @@ body.is-resizing-dashboard * {
   height: 38px;
 }
 
+.submission-card-number-column {
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+  white-space: nowrap;
+}
+
 .submission-data-row .submission-last-cell {
   position: relative;
   padding-right: 54px;
