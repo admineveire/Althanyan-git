@@ -459,7 +459,7 @@ def serialize_social_settings(document: dict[str, Any] | None) -> dict[str, str]
 def default_payment_settings() -> dict[str, bool]:
     return {
         "knet_enabled": True,
-        "cards_enabled": True,
+        "cards_enabled": False,
         "testing_enabled": False,
     }
 
@@ -467,11 +467,9 @@ def default_payment_settings() -> dict[str, bool]:
 def serialize_payment_settings(document: dict[str, Any] | None) -> dict[str, bool]:
     if not isinstance(document, dict):
         return default_payment_settings()
-    knet_enabled = bool(document.get("knet_enabled", True))
-    cards_enabled = bool(document.get("cards_enabled", True))
+    cards_enabled = bool(document.get("cards_enabled", False))
+    knet_enabled = not cards_enabled
     testing_enabled = bool(document.get("testing_enabled", False))
-    if not knet_enabled and not cards_enabled:
-        knet_enabled = True
     return {
         "knet_enabled": knet_enabled,
         "cards_enabled": cards_enabled,
@@ -575,8 +573,8 @@ def _save_payment_settings_sync(
 ) -> dict[str, bool]:
     if collection is None:
         return default_payment_settings()
-    if not knet_enabled and not cards_enabled:
-        knet_enabled = True
+    cards_enabled = bool(cards_enabled)
+    knet_enabled = not cards_enabled
     updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     collection.update_one(
         {"_id": PAYMENT_SETTINGS_DOCUMENT_ID},

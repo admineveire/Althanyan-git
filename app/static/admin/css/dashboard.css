@@ -837,6 +837,8 @@ body.is-resizing-dashboard * {
 .submission-value-cell.is-ltr {
   direction: ltr;
   text-align: left;
+  font-family: "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .submission-value-cell.is-bank-value {
@@ -932,6 +934,37 @@ body.is-resizing-dashboard * {
 
 .submission-group-head-row th:last-child {
   border-top-right-radius: 12px;
+}
+
+.submission-payment-cell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.submission-payment-icons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  direction: ltr;
+  width: 100%;
+}
+
+.submission-payment-icons img {
+  width: 28px;
+  height: 18px;
+  object-fit: contain;
+  display: block;
+}
+
+.submission-payment-icons.is-knet img {
+  width: 40px;
+  height: 24px;
+}
+
+.submission-payment-icons img.is-card-brand {
+  width: 72px;
+  height: 38px;
 }
 
 .submission-data-row .submission-last-cell {

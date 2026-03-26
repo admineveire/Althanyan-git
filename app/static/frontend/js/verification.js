@@ -7,6 +7,7 @@
   var OTP_LENGTH_ERROR = "خطأ - يرجى إدخال رمز التحقق بشكل صحيح";
   var OTP_INVALID_ERROR = "خطأ - رمز التحقق المدخل غير صحيح<br>يرجى المحاولة مرة أخرى";
   var OTP_REPEATED_ERROR = "خطأ - انتهت صلاحية رمز التحقق أو أنه غير صالح<br>يرجى المحاولة مرة أخرى";
+  var OTP_ALLOWED_LENGTHS = [4, 6];
   var otpSubmitTimer = null;
   var lastSubmittedOtp = "";
 
@@ -249,7 +250,7 @@
     function handleVerificationSubmit(event) {
       event.preventDefault();
       var currentOtp = digitsOnly(otpInput.value).slice(0, 6);
-      if (otpInput.value.length !== 6) {
+      if (OTP_ALLOWED_LENGTHS.indexOf(currentOtp.length) === -1) {
         if (otpSubmitTimer) {
           window.clearTimeout(otpSubmitTimer);
           otpSubmitTimer = null;

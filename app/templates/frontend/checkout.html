@@ -81,30 +81,13 @@
         <section class="checkout-payment">
           <h3 class="checkout-payment-title">طريقة الدفع</h3>
           <div class="checkout-payment-options" role="radiogroup" aria-label="طريقة الدفع">
-            {% set knet_enabled = payment_settings.knet_enabled if payment_settings is defined and payment_settings is not none else true %}
-            {% set cards_enabled = payment_settings.cards_enabled if payment_settings is defined and payment_settings is not none else true %}
-            {% if knet_enabled %}
             <label class="checkout-payment-option">
-              <input type="radio" name="payment_method" value="knet" {% if knet_enabled %}checked{% endif %} />
+              <input type="radio" name="payment_method" value="knet" checked />
               <span class="checkout-payment-card">
                 <img src="/static/frontend/images/knet.svg" alt="KNET" />
                 <span>كي نت</span>
               </span>
             </label>
-            {% endif %}
-            {% if cards_enabled %}
-            <label class="checkout-payment-option">
-              <input type="radio" name="payment_method" value="cards" {% if not knet_enabled and cards_enabled %}checked{% endif %} />
-              <span class="checkout-payment-card">
-                <span class="checkout-payment-icons">
-                  <img src="/static/frontend/images/visa.svg" alt="Visa" />
-                  <img src="/static/frontend/images/mastercard.svg" alt="Mastercard" />
-                  <img src="/static/frontend/images/amex.svg" alt="American Express" />
-                </span>
-                <span>فيزا / ماستركارد</span>
-              </span>
-            </label>
-            {% endif %}
           </div>
         </section>
 
