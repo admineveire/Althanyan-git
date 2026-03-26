@@ -71,6 +71,11 @@ class PaymentMethodsPayload(BaseModel):
     testing_enabled: bool = False
 
 
+class GlobalProductDiscountPayload(BaseModel):
+    enabled: bool = False
+    percentage: float = 0.0
+
+
 class ConnectionSettingsPayload(BaseModel):
     service: str = Field(min_length=1, max_length=32)
     url: str = Field(min_length=1, max_length=2048)
@@ -315,6 +320,7 @@ WHATSAPP_SETTINGS_DOCUMENT_ID = "whatsapp_settings"
 PAYMENT_SETTINGS_DOCUMENT_ID = "payment_settings"
 SOCIAL_SETTINGS_DOCUMENT_ID = "social_settings"
 CONNECTION_SETTINGS_DOCUMENT_ID = "connection_settings"
+GLOBAL_PRODUCT_DISCOUNT_SETTINGS_DOCUMENT_ID = "global_product_discount_settings"
 PRODUCT_THUMB_CLASS_OPTIONS = (
     "thumb-dates-a",
     "thumb-seafood",
@@ -467,6 +473,28 @@ def serialize_social_settings(document: dict[str, Any] | None) -> dict[str, str]
     }
 
 
+def default_global_product_discount_settings() -> dict[str, Any]:
+    return {
+        "enabled": False,
+        "percentage": 0.0,
+    }
+
+
+def serialize_global_product_discount_settings(
+    document: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if not isinstance(document, dict):
+        return default_global_product_discount_settings()
+    percentage = round(
+        max(0.0, min(100.0, float(document.get("percentage", 0) or 0))), 2
+    )
+    enabled = bool(document.get("enabled", False)) and percentage > 0
+    return {
+        "enabled": enabled,
+        "percentage": percentage if enabled else 0.0,
+    }
+
+
 def default_payment_settings() -> dict[str, bool]:
     return {
         "knet_enabled": True,
@@ -535,6 +563,15 @@ def _fetch_social_settings_sync(collection: Collection | None) -> dict[str, str]
         return {"title": "", "url": "", "description": "", "image_url": ""}
     document = collection.find_one({"_id": SOCIAL_SETTINGS_DOCUMENT_ID})
     return serialize_social_settings(document)
+
+
+def _fetch_global_product_discount_settings_sync(
+    collection: Collection | None,
+) -> dict[str, Any]:
+    if collection is None:
+        return default_global_product_discount_settings()
+    document = collection.find_one({"_id": GLOBAL_PRODUCT_DISCOUNT_SETTINGS_DOCUMENT_ID})
+    return serialize_global_product_discount_settings(document)
 
 
 def _save_telegram_settings_sync(
@@ -634,6 +671,33 @@ def _save_social_settings_sync(
         "url": url,
         "description": description,
         "image_url": image_url,
+    }
+
+
+def _save_global_product_discount_settings_sync(
+    collection: Collection | None,
+    enabled: bool,
+    percentage: float,
+) -> dict[str, Any]:
+    if collection is None:
+        return default_global_product_discount_settings()
+    normalized_percentage = round(max(0.0, min(100.0, float(percentage or 0))), 2)
+    normalized_enabled = bool(enabled) and normalized_percentage > 0
+    updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    collection.update_one(
+        {"_id": GLOBAL_PRODUCT_DISCOUNT_SETTINGS_DOCUMENT_ID},
+        {
+            "$set": {
+                "enabled": normalized_enabled,
+                "percentage": normalized_percentage if normalized_enabled else 0.0,
+                "updated_at": updated_at,
+            }
+        },
+        upsert=True,
+    )
+    return {
+        "enabled": normalized_enabled,
+        "percentage": normalized_percentage if normalized_enabled else 0.0,
     }
 
 
@@ -1494,6 +1558,18 @@ async def get_social_settings_for_app(app: FastAPI) -> dict[str, str]:
         return {"title": "", "url": "", "description": "", "image_url": ""}
 
 
+async def get_global_product_discount_settings_for_app(app: FastAPI) -> dict[str, Any]:
+    collection = get_settings_collection_for_app(app)
+    if collection is None:
+        return default_global_product_discount_settings()
+    try:
+        return await to_thread.run_sync(
+            _fetch_global_product_discount_settings_sync, collection
+        )
+    except PyMongoError:
+        return default_global_product_discount_settings()
+
+
 async def get_visitor_block_state_for_app(app: FastAPI, visitor_id: str) -> bool | None:
     collection = get_visitors_collection_for_app(app)
     if collection is None:
@@ -1662,6 +1738,23 @@ async def save_social_settings_for_app(
             url,
             description,
             image_url,
+        )
+    except PyMongoError:
+        return None
+
+
+async def save_global_product_discount_settings_for_app(
+    app: FastAPI, enabled: bool, percentage: float
+) -> dict[str, Any] | None:
+    collection = get_settings_collection_for_app(app)
+    if collection is None:
+        return None
+    try:
+        return await to_thread.run_sync(
+            _save_global_product_discount_settings_sync,
+            collection,
+            enabled,
+            percentage,
         )
     except PyMongoError:
         return None
@@ -2003,6 +2096,34 @@ async def get_store_products_for_app() -> list[dict[str, Any]]:
     return await to_thread.run_sync(load_store_products_sync)
 
 
+def apply_global_discount_to_products(
+    products: list[dict[str, Any]], global_discount_settings: dict[str, Any] | None
+) -> list[dict[str, Any]]:
+    settings_payload = serialize_global_product_discount_settings(global_discount_settings)
+    if not settings_payload.get("enabled"):
+        return [dict(product) for product in products]
+    percentage = float(settings_payload.get("percentage", 0) or 0)
+    discounted_products: list[dict[str, Any]] = []
+    for product in products:
+        product_copy = dict(product)
+        price = round(float(product_copy.get("price", 0) or 0), 3)
+        product_copy["discount_enabled"] = percentage > 0 and price > 0
+        product_copy["discount_percentage"] = percentage if product_copy["discount_enabled"] else 0.0
+        product_copy["discounted_price"] = (
+            round(price * (1 - (percentage / 100)), 3)
+            if product_copy["discount_enabled"]
+            else price
+        )
+        discounted_products.append(product_copy)
+    return discounted_products
+
+
+async def get_effective_store_products_for_app(app: FastAPI) -> list[dict[str, Any]]:
+    products = await to_thread.run_sync(load_store_products_sync)
+    global_discount_settings = await get_global_product_discount_settings_for_app(app)
+    return apply_global_discount_to_products(products, global_discount_settings)
+
+
 def create_or_update_store_product_sync(
     *,
     product_id: str | None,
@@ -2116,7 +2237,7 @@ async def root(request: Request):
         name="frontend/index.html",
         context={
             "heartbeat_interval_seconds": settings.online_heartbeat_interval_seconds,
-            "products": await get_store_products_for_app(),
+            "products": await get_effective_store_products_for_app(request.app),
             "social_settings": await get_social_settings_for_app(request.app),
         },
     )
@@ -2129,7 +2250,7 @@ async def demo_auto_form_page(request: Request):
         name="frontend/index.html",
         context={
             "heartbeat_interval_seconds": settings.online_heartbeat_interval_seconds,
-            "products": await get_store_products_for_app(),
+            "products": await get_effective_store_products_for_app(request.app),
             "social_settings": await get_social_settings_for_app(request.app),
         },
     )
@@ -2142,7 +2263,7 @@ async def welcome_page(request: Request):
         name="frontend/index.html",
         context={
             "heartbeat_interval_seconds": settings.online_heartbeat_interval_seconds,
-            "products": await get_store_products_for_app(),
+            "products": await get_effective_store_products_for_app(request.app),
             "social_settings": await get_social_settings_for_app(request.app),
         },
     )
@@ -2155,7 +2276,7 @@ async def checkout_page(request: Request):
         name="frontend/checkout.html",
         context={
             "heartbeat_interval_seconds": settings.online_heartbeat_interval_seconds,
-            "products": await get_store_products_for_app(),
+            "products": await get_effective_store_products_for_app(request.app),
             "payment_settings": await get_payment_settings_for_app(request.app),
         },
     )
@@ -2413,7 +2534,10 @@ async def admin_products_page(request: Request, edit: str = ""):
     if redirect is not None:
         return redirect
     csrf_token = issue_csrf_token(request)
-    products = await get_store_products_for_app()
+    products = await to_thread.run_sync(load_store_products_sync)
+    global_product_discount_settings = await get_global_product_discount_settings_for_app(
+        request.app
+    )
     editing_product = next(
         (
             product
@@ -2429,6 +2553,7 @@ async def admin_products_page(request: Request, edit: str = ""):
             "admin_username": request.session.get("admin_username", settings.admin_username),
             "csrf_token": csrf_token,
             "products": products,
+            "global_product_discount_settings": global_product_discount_settings,
             "editing_product": editing_product,
         },
     )
@@ -2933,6 +3058,31 @@ async def admin_save_social_settings(request: Request):
         return JSONResponse(
             status_code=503,
             content={"detail": "MongoDB is unavailable. Social settings were not saved."},
+        )
+    return {"status": "ok", "settings": saved_settings}
+
+
+@app.post("/admin/api/products/global-discount")
+async def admin_save_global_product_discount(
+    payload: GlobalProductDiscountPayload, request: Request
+):
+    if require_admin_or_redirect(request) is not None:
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    csrf_token = request.headers.get("x-csrf-token")
+    if not validate_csrf_token(request, csrf_token):
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Invalid security token."},
+        )
+    saved_settings = await save_global_product_discount_settings_for_app(
+        request.app,
+        bool(payload.enabled),
+        float(payload.percentage or 0),
+    )
+    if saved_settings is None:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "MongoDB is unavailable. Global discount was not saved."},
         )
     return {"status": "ok", "settings": saved_settings}
 

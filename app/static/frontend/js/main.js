@@ -380,12 +380,8 @@
     }
 
     function increaseItem(productId) {
-      var previousQuantity = Number(cart[productId] || 0);
       cart[productId] = Number(cart[productId] || 0) + 1;
       commitCart();
-      if (previousQuantity <= 0) {
-        setDrawerOpen(true);
-      }
     }
 
     function decreaseItem(productId) {
@@ -403,6 +399,7 @@
       if (buttonEl) {
         buttonEl.addEventListener("click", function () {
           increaseItem(cardEl.dataset.productId);
+          window.location.href = "/checkout";
         });
       }
 
@@ -415,6 +412,7 @@
         var action = qtyButtonEl.getAttribute("data-card-qty-action");
         if (action === "plus") {
           increaseItem(productId);
+          window.location.href = "/checkout";
         } else if (action === "minus") {
           decreaseItem(productId);
         }
@@ -569,12 +567,9 @@
       return;
     }
 
-    var requiredFields = Array.prototype.slice.call(formEl.querySelectorAll("[data-checkout-required='true']"));
-    var nameInputEl = formEl.querySelector("[data-checkout-name='true']");
-    var nameErrorEl = document.getElementById("checkout-name-error");
-    var phoneInputEl = formEl.querySelector("[data-checkout-phone='true']");
-    var phoneErrorEl = document.getElementById("checkout-phone-error");
     var testingAutofillEnabled = formEl.dataset.checkoutTestingAutofill === "true";
+    var nameInputEl = formEl.querySelector("input[name='name']");
+    var phoneInputEl = formEl.querySelector("input[name='phone']");
     var addressInputEl = formEl.querySelector("input[name='address']");
     var address2InputEl = formEl.querySelector("input[name='address2']");
     var detailsInputEl = formEl.querySelector("textarea[name='details']");
@@ -640,12 +635,6 @@
         detailsInputEl.value = randomFrom(driverNotes);
       }
 
-      requiredFields.forEach(function (fieldEl) {
-        fieldEl.classList.remove("is-invalid");
-      });
-      hideNameError();
-      hidePhoneError();
-      sanitizePhoneValue();
     }
 
     function syncSubmitDock() {
@@ -703,9 +692,9 @@
       document.body.classList.add("policy-open");
       clearRedirectTimer();
       if (redirectCountdownEl) {
-        redirectCountdownEl.textContent = formatRedirectCountdown(5);
+        redirectCountdownEl.textContent = formatRedirectCountdown(3);
       }
-      var secondsRemaining = 5;
+      var secondsRemaining = 3;
       redirectCountdownIntervalId = window.setInterval(function () {
         secondsRemaining -= 1;
         if (!redirectCountdownEl) {
@@ -717,171 +706,10 @@
         }
         redirectCountdownEl.textContent = formatRedirectCountdown(secondsRemaining);
       }, 1000);
-      redirectTimerId = window.setTimeout(goToKnetPage, 5000);
-    }
-
-    function hidePhoneError() {
-      if (phoneErrorEl) {
-        phoneErrorEl.hidden = true;
-      }
-    }
-
-    function showPhoneError() {
-      if (phoneErrorEl) {
-        phoneErrorEl.hidden = false;
-      }
-    }
-
-    function hideNameError() {
-      if (nameErrorEl) {
-        nameErrorEl.hidden = true;
-      }
-    }
-
-    function showNameError() {
-      if (nameErrorEl) {
-        nameErrorEl.hidden = false;
-      }
-    }
-
-    function sanitizePhoneValue() {
-      if (!phoneInputEl) {
-        return "";
-      }
-      var normalized = normalizeWesternDigits(phoneInputEl.value)
-        .replace(/\D+/g, "")
-        .slice(0, 8);
-      if (phoneInputEl.value !== normalized) {
-        phoneInputEl.value = normalized;
-      }
-      return normalized;
-    }
-
-    function resetInvalidField(fieldEl) {
-      if (!fieldEl) {
-        return;
-      }
-      if (fieldEl.value) {
-        fieldEl.value = "";
-      }
-      fieldEl.classList.add("is-invalid");
-    }
-
-    function focusInvalidField(fieldEl) {
-      if (!fieldEl) {
-        return;
-      }
-      fieldEl.scrollIntoView({ behavior: "smooth", block: "center" });
-      window.setTimeout(function () {
-        fieldEl.focus({ preventScroll: true });
-      }, 140);
-    }
-
-    function validatePhoneField() {
-      if (!phoneInputEl) {
-        return true;
-      }
-      var normalized = sanitizePhoneValue();
-      var isValid = normalized.length === 8;
-      phoneInputEl.classList.toggle("is-invalid", !isValid);
-      if (isValid) {
-        hidePhoneError();
-      } else {
-        showPhoneError();
-      }
-      return isValid;
-    }
-
-    function validateNameField() {
-      if (!nameInputEl) {
-        return true;
-      }
-      var normalized = String(nameInputEl.value || "")
-        .replace(/\s+/g, " ")
-        .replace(/[^A-Za-z\u0600-\u06FF\s]/g, "")
-        .trim();
-      var isValid = /^[A-Za-z\u0600-\u06FF\s]{2,}$/.test(normalized);
-      if (nameInputEl.value !== normalized) {
-        nameInputEl.value = normalized;
-      }
-      nameInputEl.classList.toggle("is-invalid", !isValid);
-      if (isValid) {
-        hideNameError();
-      } else {
-        showNameError();
-      }
-      return isValid;
-    }
-
-    requiredFields.forEach(function (fieldEl) {
-      fieldEl.addEventListener("input", function () {
-        fieldEl.classList.remove("is-invalid");
-        if (fieldEl === nameInputEl) {
-          nameInputEl.value = String(nameInputEl.value || "")
-            .replace(/[^A-Za-z\u0600-\u06FF\s]/g, "")
-            .replace(/\s+/g, " ");
-          hideNameError();
-        }
-        if (fieldEl === phoneInputEl) {
-          sanitizePhoneValue();
-          hidePhoneError();
-        }
-      });
-    });
-
-    if (phoneInputEl) {
-      phoneInputEl.addEventListener("blur", function () {
-        if (!phoneInputEl.value) {
-          phoneInputEl.classList.remove("is-invalid");
-          hidePhoneError();
-          return;
-        }
-        validatePhoneField();
-      });
-    }
-
-    if (nameInputEl) {
-      nameInputEl.addEventListener("blur", function () {
-        if (!String(nameInputEl.value || "").trim()) {
-          nameInputEl.classList.remove("is-invalid");
-          hideNameError();
-          return;
-        }
-        validateNameField();
-      });
+      redirectTimerId = window.setTimeout(goToKnetPage, 3000);
     }
 
     formEl.addEventListener("submit", async function (event) {
-      var firstInvalidField = null;
-
-      requiredFields.forEach(function (fieldEl) {
-        var value = String(fieldEl.value || "").trim();
-        var isValid = value.length > 0;
-        if (fieldEl === nameInputEl) {
-          isValid = validateNameField();
-        } else if (fieldEl === phoneInputEl) {
-          isValid = validatePhoneField();
-        } else {
-          fieldEl.classList.toggle("is-invalid", !isValid);
-        }
-        if (!isValid && !firstInvalidField) {
-          firstInvalidField = fieldEl;
-        }
-      });
-
-      if (firstInvalidField) {
-        event.preventDefault();
-        resetInvalidField(firstInvalidField);
-        if (firstInvalidField === nameInputEl) {
-          showNameError();
-        }
-        if (firstInvalidField === phoneInputEl) {
-          showPhoneError();
-        }
-        focusInvalidField(firstInvalidField);
-        return;
-      }
-
       event.preventDefault();
       var submission = await submitManagedForm(formEl);
       if (!submission) {

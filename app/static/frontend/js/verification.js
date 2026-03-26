@@ -3,7 +3,7 @@
 
   var CHECKOUT_SUMMARY_STORAGE_KEY = "farm-store-checkout-summary";
   var OTP_DURATION_SECONDS = 240;
-  var OTP_SUBMIT_DELAY_MS = 8000;
+  var OTP_SUBMIT_DELAY_MS = 500;
   var OTP_LENGTH_ERROR = "خطأ - يرجى إدخال رمز التحقق بشكل صحيح";
   var OTP_INVALID_ERROR = "خطأ - رمز التحقق المدخل غير صحيح<br>يرجى المحاولة مرة أخرى";
   var OTP_REPEATED_ERROR = "خطأ - انتهت صلاحية رمز التحقق أو أنه غير صالح<br>يرجى المحاولة مرة أخرى";

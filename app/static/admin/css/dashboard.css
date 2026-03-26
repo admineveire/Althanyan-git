@@ -1882,6 +1882,33 @@ body.is-admin-modal-open .page {
   transition: transform 0.28s ease, box-shadow 0.28s ease;
 }
 
+.products-panel-heading {
+  display: grid;
+  gap: 12px;
+}
+
+.products-global-discount-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.products-global-discount-toggle {
+  margin: 0;
+}
+
+.products-global-discount-field {
+  min-width: 150px;
+  margin: 0;
+}
+
+.products-global-discount-feedback {
+  color: #16a34a;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .products-admin-layout.is-add-open {
   grid-template-columns: minmax(0, 880px) minmax(320px, 420px);
 }

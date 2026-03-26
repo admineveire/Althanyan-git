@@ -9,7 +9,7 @@
   <link rel="manifest" href="/static/frontend/images/favicon/site.webmanifest" />
   <meta name="theme-color" content="#0f766e" />
   <link rel="stylesheet" href="/static/admin/vendor/tabler/tabler.min.css" />
-  <link rel="stylesheet" href="/static/admin/css/dashboard.css?v=20260326-34" />
+  <link rel="stylesheet" href="/static/admin/css/dashboard.css?v=20260326-35" />
 </head>
 <body class="admin-dashboard admin-products-page">
   <div class="page">
@@ -32,8 +32,33 @@
         <section class="products-admin-layout" id="products-admin-layout">
           <section class="card dashboard-section products-list-panel">
             <div class="panel-header">
-              <div>
+              <div class="products-panel-heading">
                 <h3 class="submissions-title">منتجات المتجر</h3>
+                <form class="products-global-discount-form" id="products-global-discount-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                  <label class="products-admin-checkbox products-global-discount-toggle">
+                    <input
+                      type="checkbox"
+                      id="products-global-discount-enabled"
+                      {% if global_product_discount_settings.enabled %}checked{% endif %}
+                    />
+                    <span>خصم عام على جميع المنتجات</span>
+                  </label>
+                  <label class="products-admin-label products-global-discount-field" id="products-global-discount-field" {% if not global_product_discount_settings.enabled %}hidden{% endif %}>
+                    <span>نسبة الخصم %</span>
+                    <input
+                      class="form-control"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      id="products-global-discount-percentage"
+                      value="{{ '%.2f'|format(global_product_discount_settings.percentage or 0) if global_product_discount_settings.enabled else '' }}"
+                    />
+                  </label>
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="products-global-discount-save-btn">حفظ الخصم</button>
+                  <span class="products-global-discount-feedback" id="products-global-discount-feedback" hidden></span>
+                </form>
               </div>
               <button type="button" class="products-add-trigger" id="products-add-trigger" aria-label="Add product">
                 <span>+</span>
@@ -271,6 +296,12 @@
       var editCurrentImageEl = document.getElementById("edit-product-current-image-tag");
       var editButtons = Array.prototype.slice.call(document.querySelectorAll("[data-edit-product]"));
       var productsTbodyEl = document.getElementById("products-admin-tbody");
+      var globalDiscountFormEl = document.getElementById("products-global-discount-form");
+      var globalDiscountEnabledEl = document.getElementById("products-global-discount-enabled");
+      var globalDiscountFieldEl = document.getElementById("products-global-discount-field");
+      var globalDiscountPercentageEl = document.getElementById("products-global-discount-percentage");
+      var globalDiscountSaveEl = document.getElementById("products-global-discount-save-btn");
+      var globalDiscountFeedbackEl = document.getElementById("products-global-discount-feedback");
       var csrfToken = {{ csrf_token|tojson }};
       var draggedRowEl = null;
       var reorderInFlight = false;
@@ -329,6 +360,63 @@
           syncDiscountField(createDiscountEnabledEl, createDiscountFieldEl);
         });
         syncDiscountField(createDiscountEnabledEl, createDiscountFieldEl);
+      }
+
+      if (globalDiscountEnabledEl) {
+        globalDiscountEnabledEl.addEventListener("change", function () {
+          syncDiscountField(globalDiscountEnabledEl, globalDiscountFieldEl);
+          if (!globalDiscountEnabledEl.checked && globalDiscountPercentageEl) {
+            globalDiscountPercentageEl.value = "";
+          }
+          if (globalDiscountFeedbackEl) {
+            globalDiscountFeedbackEl.hidden = true;
+            globalDiscountFeedbackEl.textContent = "";
+          }
+        });
+        syncDiscountField(globalDiscountEnabledEl, globalDiscountFieldEl);
+      }
+
+      if (globalDiscountSaveEl) {
+        globalDiscountSaveEl.addEventListener("click", async function () {
+          if (!globalDiscountEnabledEl || !globalDiscountPercentageEl) {
+            return;
+          }
+          var percentageValue = Number.parseFloat(String(globalDiscountPercentageEl.value || "").trim() || "0");
+          if (!Number.isFinite(percentageValue)) {
+            percentageValue = 0;
+          }
+          try {
+            var response = await window.fetch("/admin/api/products/global-discount", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-CSRF-Token": csrfToken
+              },
+              credentials: "same-origin",
+              body: JSON.stringify({
+                enabled: globalDiscountEnabledEl.checked,
+                percentage: percentageValue
+              })
+            });
+            var payload = await response.json();
+            if (!response.ok || payload.status !== "ok") {
+              throw new Error((payload && payload.detail) || "تعذر حفظ الخصم العام");
+            }
+            if (globalDiscountFeedbackEl) {
+              globalDiscountFeedbackEl.hidden = false;
+              globalDiscountFeedbackEl.textContent = "تم حفظ الخصم العام";
+            }
+            window.setTimeout(function () {
+              window.location.reload();
+            }, 250);
+          } catch (error) {
+            if (globalDiscountFeedbackEl) {
+              globalDiscountFeedbackEl.hidden = false;
+              globalDiscountFeedbackEl.textContent = (error && error.message) || "تعذر حفظ الخصم العام";
+            }
+          }
+        });
       }
 
       if (createDescriptionEnabledEl) {
